@@ -53,6 +53,19 @@ export type GraphListItem<TFields> = {
 };
 
 /**
+ * Guard for a SharePoint list-item id before it is interpolated into a Graph
+ * URL path (e.g. `/items/${id}`). SharePoint item ids are always positive
+ * integers; rejecting anything else stops a crafted id (e.g.
+ * "1/../../<otherList>/items/9") from redirecting a write to a different
+ * resource. Throws a clean, non-leaky error the callers already handle.
+ */
+export function requireNumericId(id: string): void {
+  if (!/^\d+$/.test(id)) {
+    throw new GraphApiError("Invalid list item id.", 400, "invalid_item_id");
+  }
+}
+
+/**
  * Get the configured SharePoint site ID, or throw a clear, non-secret error
  * that the pages catch and turn into a "not connected yet" notice.
  */

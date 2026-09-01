@@ -530,15 +530,23 @@ export async function saveNotificationSettingsAction(
 // Operating settings (hours, thresholds, misc amount)
 // ---------------------------------------------------------------------------
 
-const settingsSchema = z.object({
-  outletId: z.string().min(1),
-  outletName: z.string().min(1),
-  operatingHoursStart: z.string().max(20).optional(),
-  operatingHoursEnd: z.string().max(20).optional(),
-  greenThresholdMinutes: z.coerce.number().int().min(1).max(1440),
-  yellowThresholdMinutes: z.coerce.number().int().min(1).max(1440),
-  miscAmount: z.coerce.number().min(0).max(1_000_000),
-});
+const settingsSchema = z
+  .object({
+    outletId: z.string().min(1),
+    outletName: z.string().min(1),
+    operatingHoursStart: z.string().max(20).optional(),
+    operatingHoursEnd: z.string().max(20).optional(),
+    greenThresholdMinutes: z.coerce.number().int().min(1).max(1440),
+    yellowThresholdMinutes: z.coerce.number().int().min(1).max(1440),
+    miscAmount: z.coerce.number().min(0).max(1_000_000),
+  })
+  // Freshness bands are green (most recent) < yellow < red. If green were >=
+  // yellow the yellow band would be unreachable and sections would jump
+  // straight green -> red, so enforce the ordering.
+  .refine((d) => d.greenThresholdMinutes < d.yellowThresholdMinutes, {
+    message: "greenThresholdMinutes must be less than yellowThresholdMinutes",
+    path: ["greenThresholdMinutes"],
+  });
 
 export async function saveSettingsAction(formData: FormData): Promise<void> {
   const session = await requirePortalSession();

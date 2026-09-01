@@ -12,6 +12,7 @@ import {
   graphGetAll,
   graphPost,
   graphPatch,
+  requireNumericId,
 } from "@/lib/graph/client";
 import { listContext } from "@/lib/graph/lists";
 
@@ -75,6 +76,7 @@ export async function updateOutlet(
   itemId: string,
   input: Partial<{ name: string; isActive: boolean }>,
 ): Promise<void> {
+  requireNumericId(itemId);
   const { siteId, listId } = await listContext("outlets");
   const fields: Partial<OutletFields> = {};
   if (input.name !== undefined) fields.Title = input.name;

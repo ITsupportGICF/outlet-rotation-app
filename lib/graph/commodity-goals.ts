@@ -13,6 +13,7 @@ import {
   graphGetAll,
   graphPost,
   graphPatch,
+  NON_INDEXED_QUERY_HEADER,
 } from "@/lib/graph/client";
 import { listContext } from "@/lib/graph/lists";
 
@@ -45,19 +46,18 @@ function toGoal(item: GraphListItem<GoalFields>): CommodityGoal {
   };
 }
 
-async function listAllGoals(): Promise<CommodityGoal[]> {
-  const { siteId, listId } = await listContext("commodityDailyGoals");
-  const items = await graphGetAll<GraphListItem<GoalFields>>(
-    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=2000`,
-  );
-  return items.map(toGoal);
-}
-
-/** The daily commodity goals configured for one outlet. */
+/** The daily commodity goals configured for one outlet (filtered server-side). */
 export async function listGoalsForOutlet(
   outletId: string,
 ): Promise<CommodityGoal[]> {
-  return (await listAllGoals()).filter((g) => g.outletId === String(outletId));
+  const { siteId, listId } = await listContext("commodityDailyGoals");
+  const items = await graphGetAll<GraphListItem<GoalFields>>(
+    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=2000&$filter=fields/OutletLookupId eq ${Number(
+      outletId,
+    )}`,
+    NON_INDEXED_QUERY_HEADER,
+  );
+  return items.map(toGoal).filter((g) => g.outletId === String(outletId));
 }
 
 /**

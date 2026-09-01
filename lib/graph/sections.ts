@@ -17,6 +17,7 @@ import {
   graphPost,
   graphPatch,
   graphDelete,
+  requireNumericId,
 } from "@/lib/graph/client";
 import { listContext } from "@/lib/graph/lists";
 
@@ -101,6 +102,7 @@ export async function updateSection(
   itemId: string,
   input: Partial<{ name: string; displayOrder: number; isActive: boolean }>,
 ): Promise<void> {
+  requireNumericId(itemId);
   const { siteId, listId } = await listContext("sections");
   const fields: Partial<SectionFields> = {};
   if (input.name !== undefined) fields.Title = input.name;
@@ -113,6 +115,7 @@ export async function updateSection(
 }
 
 export async function deleteSection(itemId: string): Promise<void> {
+  requireNumericId(itemId);
   const { siteId, listId } = await listContext("sections");
   await graphDelete(`/sites/${siteId}/lists/${listId}/items/${itemId}`);
 }

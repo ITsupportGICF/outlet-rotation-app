@@ -24,18 +24,17 @@ export async function GET(request: NextRequest) {
   }
 
   const error = request.nextUrl.searchParams.get("error");
-  const errorDescription = request.nextUrl.searchParams.get(
-    "error_description",
-  );
-
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
 
   if (error || !code || state !== transaction.state) {
-    console.error("Microsoft authentication failed", {
-      error,
-      errorDescription,
-    });
+    // Log a fixed message plus only the short OAuth error code, sanitized of
+    // control characters. error_description is attacker-influenced free text
+    // (log-injection risk) and is deliberately not logged.
+    const safeError = String(error ?? "state_mismatch")
+      .replace(/[^a-zA-Z0-9_.-]/g, "")
+      .slice(0, 64);
+    console.error("Microsoft authentication failed", { error: safeError });
 
     const response = NextResponse.redirect(
       new URL("/?error=authentication_failed", env.AUTH_URL),
@@ -115,7 +114,12 @@ export async function GET(request: NextRequest) {
     clearTransactionOn(response);
     return response;
   } catch (err) {
-    console.error("Authentication callback failed", err);
+    // Log only the error message, never the full error object (which can
+    // carry MSAL internals such as endpoints/correlation ids).
+    console.error(
+      "Authentication callback failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
 
     const response = NextResponse.redirect(
       new URL("/?error=authentication_failed", env.AUTH_URL),

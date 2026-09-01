@@ -48,8 +48,15 @@ export type RotationOutcome =
  * rotation rows. Shared by the Standard and Manual entry points. Assumes the
  * caller has already established the right authorization (portal for
  * Standard; portal + admin for Manual).
+ *
+ * NOTE: module-private on purpose. In the App Router every EXPORTED function
+ * in a "use server" file is a callable action endpoint; exporting this would
+ * expose a rotation writer that trusts a caller-supplied rotationType and
+ * performedByEmail and skips the per-entry auth the exported wrappers add.
+ * Its only callers are performRotationAction (below), which set those fields
+ * from the server session.
  */
-export async function submitRotation(input: {
+async function submitRotation(input: {
   outletId: string;
   sectionId: string;
   rotationType: RotationType;

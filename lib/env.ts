@@ -19,7 +19,14 @@ const envSchema = z.object({
 
   AUTH_URL: z
     .string()
-    .startsWith("http", "must be a full URL, e.g. http://localhost:3000"),
+    .startsWith("http", "must be a full URL, e.g. http://localhost:3000")
+    // In production the app is served over TLS (Azure) and this value is the
+    // base for auth redirects, so require https there; http://localhost stays
+    // valid for local dev.
+    .refine(
+      (v) => process.env.NODE_ENV !== "production" || v.startsWith("https://"),
+      "must be an https:// URL in production",
+    ),
 
   // --- Microsoft Entra ID ---
   ENTRA_TENANT_ID: z.string().min(1),

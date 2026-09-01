@@ -13,6 +13,7 @@ import {
   graphGetAll,
   graphPost,
   graphPatch,
+  NON_INDEXED_QUERY_HEADER,
 } from "@/lib/graph/client";
 import { listContext } from "@/lib/graph/lists";
 
@@ -51,7 +52,10 @@ export async function getDayGoals(
 ): Promise<Map<string, number>> {
   const { siteId, listId } = await listContext("operatingDayGoals");
   const items = await graphGetAll<GraphListItem<DayGoalFields>>(
-    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=2000`,
+    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=2000&$filter=fields/OperatingDayLookupId eq ${Number(
+      operatingDayId,
+    )}`,
+    NON_INDEXED_QUERY_HEADER,
   );
   const map = new Map<string, number>();
   for (const raw of items) {
@@ -69,7 +73,10 @@ async function listDayGoalRows(
 ): Promise<OperatingDayGoal[]> {
   const { siteId, listId } = await listContext("operatingDayGoals");
   const items = await graphGetAll<GraphListItem<DayGoalFields>>(
-    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=2000`,
+    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=2000&$filter=fields/OperatingDayLookupId eq ${Number(
+      operatingDayId,
+    )}`,
+    NON_INDEXED_QUERY_HEADER,
   );
   return items
     .map(toDayGoal)

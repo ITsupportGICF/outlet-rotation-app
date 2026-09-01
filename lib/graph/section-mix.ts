@@ -13,6 +13,7 @@ import {
   graphGetAll,
   graphPost,
   graphPatch,
+  NON_INDEXED_QUERY_HEADER,
 } from "@/lib/graph/client";
 import { listContext } from "@/lib/graph/lists";
 
@@ -53,12 +54,23 @@ async function listAllMix(): Promise<MixEntry[]> {
   return items.map(toMixEntry);
 }
 
-/** The mix rows for a single section (one per commodity that section rotates). */
+/**
+ * The mix rows for a single section (one per commodity that section rotates).
+ * Filtered server-side by the Section lookup — this is on the hot rotation
+ * path (every Rotate press calls it), so it must not fetch and scan the whole
+ * mix list.
+ */
 export async function listMixForSection(
   sectionId: string,
 ): Promise<MixEntry[]> {
-  const all = await listAllMix();
-  return all.filter((m) => m.sectionId === String(sectionId));
+  const { siteId, listId } = await listContext("sectionCommodityMix");
+  const items = await graphGetAll<GraphListItem<MixFields>>(
+    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=2000&$filter=fields/SectionLookupId eq ${Number(
+      sectionId,
+    )}`,
+    NON_INDEXED_QUERY_HEADER,
+  );
+  return items.map(toMixEntry).filter((m) => m.sectionId === String(sectionId));
 }
 
 /** All mix rows for a set of sections, keyed by sectionId -> commodityId -> qty. */

@@ -13,6 +13,7 @@ import {
   type GraphListItem,
   graphGetAll,
   graphPost,
+  graphDelete,
   NON_INDEXED_QUERY_HEADER,
 } from "@/lib/graph/client";
 import { listContext } from "@/lib/graph/lists";
@@ -94,9 +95,16 @@ export async function getRotationsForOperatingDay(
 
 /**
  * Append one rotation "press": one row per commodity in the section's mix,
- * all sharing the same RotatedAt / Section / OperatingDay / performer. Rows
- * are written sequentially so a throttled write surfaces as a clear error
- * rather than a silent gap.
+ * all sharing the same RotatedAt / Section / OperatingDay / performer.
+ *
+ * A press must be all-or-nothing. If a write fails partway (e.g. SharePoint
+ * throttling with HTTP 429, or a dropped connection), the rows already
+ * written are rolled back before the error is rethrown. Without this, a
+ * partial press would both distort goal totals AND advance the rotation
+ * cycle pointer (it is derived from these rows), stranding the section: the
+ * associate sees a failure and retries, but the retry is then rejected as
+ * "out of order". Rolling back keeps the cycle exactly where it was so the
+ * retry succeeds cleanly.
  */
 export async function appendRotation(input: {
   operatingDayId: string;
@@ -110,24 +118,42 @@ export async function appendRotation(input: {
   const { siteId, listId } = await listContext("rotationHistory");
   const rotatedAt = new Date().toISOString();
 
-  let written = 0;
-  for (const c of input.commodities) {
-    await graphPost(`/sites/${siteId}/lists/${listId}/items`, {
-      fields: {
-        Title: `${input.sectionName} — ${c.commodityName} — ${rotatedAt}`,
-        OperatingDayLookupId: Number(input.operatingDayId),
-        OutletLookupId: Number(input.outletId),
-        SectionLookupId: Number(input.sectionId),
-        CommodityLookupId: Number(c.commodityId),
-        Quantity: c.quantity,
-        RotationType: input.rotationType,
-        PerformedByEmail: input.performedByEmail,
-        RotatedAt: rotatedAt,
-      },
-    });
-    written += 1;
+  const createdIds: string[] = [];
+  try {
+    for (const c of input.commodities) {
+      const created = await graphPost<{ id?: string }>(
+        `/sites/${siteId}/lists/${listId}/items`,
+        {
+          fields: {
+            Title: `${input.sectionName} — ${c.commodityName} — ${rotatedAt}`,
+            OperatingDayLookupId: Number(input.operatingDayId),
+            OutletLookupId: Number(input.outletId),
+            SectionLookupId: Number(input.sectionId),
+            CommodityLookupId: Number(c.commodityId),
+            Quantity: c.quantity,
+            RotationType: input.rotationType,
+            PerformedByEmail: input.performedByEmail,
+            RotatedAt: rotatedAt,
+          },
+        },
+      );
+      if (created?.id) createdIds.push(created.id);
+    }
+  } catch (err) {
+    // Roll back the rows already written for this press (best-effort) so a
+    // partial write never advances the cycle or skews goals, then surface
+    // the failure to the caller.
+    for (const id of createdIds) {
+      try {
+        await graphDelete(`/sites/${siteId}/lists/${listId}/items/${id}`);
+      } catch {
+        // Best-effort cleanup; the original error below is what matters.
+      }
+    }
+    throw err;
   }
-  return written;
+
+  return createdIds.length;
 }
 
 /**

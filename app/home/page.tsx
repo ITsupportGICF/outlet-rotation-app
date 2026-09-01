@@ -53,8 +53,8 @@ export default async function HomePage() {
           className="rise-in page-sub mx-auto mt-4 max-w-md text-base"
           style={{ animationDelay: "0.35s" }}
         >
-          Welcome back, {session.name.split(" ")[0]}. Choose where you&apos;d like
-          to go.
+          Welcome back, {session.name.split(" ")[0] || "there"}. Choose where
+          you&apos;d like to go.
         </p>
       </section>
 
