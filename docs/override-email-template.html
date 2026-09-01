@@ -1,0 +1,82 @@
+<!--
+  Override notification email — paste the <body> contents into the Power
+  Automate "Send an email (V2)" Body (switch the body box to code view </>).
+  Replace the [[TOKENS]] with dynamic content / expressions (see
+  claude/override-email-setup.md). This file also opens in a browser as a
+  live preview with the sample values below.
+  Email-safe: table layout, inline styles, max-width 600, mobile-friendly.
+-->
+<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#eef5fb;font-family:'Segoe UI',Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef5fb;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px rgba(11,61,102,0.12);">
+
+            <!-- Header -->
+            <tr>
+              <td style="background:linear-gradient(135deg,#0b3d66 0%,#155a94 100%);padding:26px 32px;border-bottom:4px solid #c9a227;">
+                <p style="margin:0;color:#dbe9f7;font-size:12px;letter-spacing:3px;text-transform:uppercase;">Outlet Rotation App</p>
+                <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Rotation Section Overridden</h1>
+              </td>
+            </tr>
+
+            <!-- Intro -->
+            <tr>
+              <td style="padding:28px 32px 8px;">
+                <p style="margin:0 0 4px;color:#0b3d66;font-size:16px;font-weight:600;">A rotation section has been overridden and skipped.</p>
+                <p style="margin:0;color:#5b7994;font-size:14px;">The section below was intentionally skipped; the rotation has moved on to the next section in order.</p>
+              </td>
+            </tr>
+
+            <!-- Details -->
+            <tr>
+              <td style="padding:16px 32px 8px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:12px;overflow:hidden;">
+                  <tr>
+                    <td style="padding:14px 18px;background:#f4f9fd;color:#5b7994;font-size:13px;width:120px;">Store</td>
+                    <td style="padding:14px 18px;background:#f4f9fd;color:#0b3d66;font-size:15px;font-weight:600;">[[STORE]]</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 18px;color:#5b7994;font-size:13px;border-top:1px solid #e6eef6;">Section</td>
+                    <td style="padding:14px 18px;color:#0b3d66;font-size:15px;font-weight:600;border-top:1px solid #e6eef6;">[[SECTION]]</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 18px;background:#f4f9fd;color:#5b7994;font-size:13px;border-top:1px solid #e6eef6;">Date</td>
+                    <td style="padding:14px 18px;background:#f4f9fd;color:#0b3d66;font-size:15px;font-weight:600;border-top:1px solid #e6eef6;">[[DATE]]</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:14px 18px;color:#5b7994;font-size:13px;border-top:1px solid #e6eef6;">Time</td>
+                    <td style="padding:14px 18px;color:#0b3d66;font-size:15px;font-weight:600;border-top:1px solid #e6eef6;">[[TIME]]</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Action note -->
+            <tr>
+              <td style="padding:14px 32px 28px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff6e0;border:1px solid #f0d78a;border-radius:12px;">
+                  <tr>
+                    <td style="padding:14px 18px;color:#7a5c05;font-size:14px;">
+                      <strong>Action:</strong> [[SECTION]] was overridden and skipped.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:18px 32px;background:#f4f9fd;border-top:1px solid #e6eef6;">
+                <p style="margin:0;color:#8ba5ba;font-size:12px;">Outlet Rotation App · Goodwill Industries of Central Florida · Automated notification</p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

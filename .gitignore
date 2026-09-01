@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.env
+.env.local
+.env.*.local
+*.log
+
+# Local secrets
+EntraMSkEYS.txt
+
+# Local project artifacts
+*.tgz
