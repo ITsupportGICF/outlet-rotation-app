@@ -73,20 +73,24 @@ async function requireAdminSession() {
   await requirePortalSession();
   const admin = await getAdminSession();
   if (!admin) {
-    throw new Error("Admin Center session required.");
+    // The 30-minute Admin Center elevation expired (or was never established).
+    // Redirect back to the Admin login gate instead of throwing a 500 — the
+    // page shows the login form when there's no admin session.
+    redirect("/admin?relogin=1");
   }
   return admin;
 }
 
 function adminUrl(
   outletId: string,
-  opts: { status?: string; rerror?: string; tab?: string } = {},
+  opts: { status?: string; rerror?: string; rmsg?: string; tab?: string } = {},
 ): string {
   const q = new URLSearchParams();
   if (outletId) q.set("outletId", outletId);
   if (opts.tab) q.set("tab", opts.tab);
   if (opts.status) q.set("msg", opts.status);
   if (opts.rerror) q.set("rerror", opts.rerror);
+  if (opts.rmsg) q.set("rmsg", opts.rmsg);
   return `/admin?${q.toString()}`;
 }
 
@@ -175,36 +179,84 @@ export async function toggleOutletActiveAction(
 // Sections
 // ---------------------------------------------------------------------------
 
-const sectionCreateSchema = z.object({
-  outletId: z.string().min(1),
-  name: z.string().trim().min(1).max(100),
-  displayOrder: z.coerce.number().int().min(0).max(9999),
-  isActive: z.boolean(),
-});
+/**
+ * Parse the Order field ("1,3" / "2") into sorted, de-duped 1-based integers.
+ * Returns null if empty or any entry is not a positive whole number.
+ */
+function parseOrderList(raw: string): number[] | null {
+  const parts = raw
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return null;
+  const nums: number[] = [];
+  for (const p of parts) {
+    const n = Number(p);
+    if (!Number.isInteger(n) || n < 1 || n > 9999) return null;
+    nums.push(n);
+  }
+  return Array.from(new Set(nums)).sort((a, b) => a - b);
+}
+
+/** The smallest position number not already used by any of the outlet's sections. */
+function nextFreePosition(sections: { orderPositions: number[] }[]): number {
+  const used = new Set<number>();
+  for (const s of sections) for (const p of s.orderPositions) used.add(p);
+  let n = 1;
+  while (used.has(n)) n += 1;
+  return n;
+}
+
+/** True if a Graph error is "the RotationOrder column doesn't exist yet". */
+function isMissingRotationOrderColumn(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : "";
+  return /RotationOrder/i.test(msg) && /not recognized|does not exist|invalid/i.test(msg);
+}
+
+const ROTATION_COLUMN_MSG =
+  "The Sections list is missing the ‘RotationOrder’ column. Add it to the Sections list (Single line of text) and try again.";
 
 export async function createSectionAction(formData: FormData): Promise<void> {
   const session = await requirePortalSession();
   await requireAdminSession();
-  const parsed = sectionCreateSchema.safeParse({
-    outletId: formData.get("outletId"),
-    name: formData.get("name"),
-    displayOrder: formData.get("displayOrder") ?? 0,
-    isActive: formData.get("isActive") === "on",
-  });
-  if (!parsed.success) redirect("/admin");
 
-  await createSection(parsed.data);
+  const outletId = String(formData.get("outletId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const isActive = formData.get("isActive") === "on";
+  if (!outletId || !name) redirect("/admin");
+
+  // A new section is appended at the next free position; the admin then arranges
+  // the full order in the single-button Rotation Order editor below.
+  const existing = await listSectionsForOutlet(outletId);
+  const position = nextFreePosition(existing);
 
   try {
-    const outlet = await getOutlet(parsed.data.outletId);
+    await createSection({ name, outletId, orderPositions: [position], isActive });
+  } catch (e) {
+    if (isMissingRotationOrderColumn(e)) {
+      redirect(
+        adminUrl(outletId, { rerror: "order_invalid", rmsg: ROTATION_COLUMN_MSG, tab: "sections" }),
+      );
+    }
+    redirect(
+      adminUrl(outletId, {
+        rerror: "order_invalid",
+        rmsg: "Couldn’t add the section — please try again.",
+        tab: "sections",
+      }),
+    );
+  }
+
+  try {
+    const outlet = await getOutlet(outletId);
     await appendConfigChange({
       storeName: outlet?.name ?? "Outlet",
       action: "Section Added",
       changedByEmail: session.email,
       details: [
-        { label: "Section", value: parsed.data.name },
-        { label: "Order", value: String(parsed.data.displayOrder) },
-        { label: "Status", value: parsed.data.isActive ? "Active" : "Inactive" },
+        { label: "Section", value: name },
+        { label: "Order", value: String(position) },
+        { label: "Status", value: isActive ? "Active" : "Inactive" },
       ],
     });
   } catch {
@@ -212,35 +264,103 @@ export async function createSectionAction(formData: FormData): Promise<void> {
   }
 
   revalidateAll();
-  redirect(adminUrl(parsed.data.outletId, { status: "section_added", tab: "sections" }));
+  redirect(adminUrl(outletId, { status: "section_added", tab: "sections" }));
 }
 
-const sectionUpdateSchema = z.object({
-  outletId: z.string().min(1),
-  itemId: z.string().min(1),
-  name: z.string().trim().min(1).max(100),
-  displayOrder: z.coerce.number().int().min(0).max(9999),
-  isActive: z.boolean(),
-});
-
+/** Rename / activate a single section. Rotation order is handled separately. */
 export async function updateSectionAction(formData: FormData): Promise<void> {
   await requireAdminSession();
-  const parsed = sectionUpdateSchema.safeParse({
-    outletId: formData.get("outletId"),
-    itemId: formData.get("itemId"),
-    name: formData.get("name"),
-    displayOrder: formData.get("displayOrder") ?? 0,
-    isActive: formData.get("isActive") === "on",
-  });
-  if (!parsed.success) redirect("/admin");
 
-  await updateSection(parsed.data.itemId, {
-    name: parsed.data.name,
-    displayOrder: parsed.data.displayOrder,
-    isActive: parsed.data.isActive,
-  });
+  const outletId = String(formData.get("outletId") ?? "");
+  const itemId = String(formData.get("itemId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const isActive = formData.get("isActive") === "on";
+  if (!outletId || !itemId || !name) redirect("/admin");
+
+  await updateSection(itemId, { name, isActive });
   revalidateAll();
-  redirect(adminUrl(parsed.data.outletId, { status: "section_saved", tab: "sections" }));
+  redirect(adminUrl(outletId, { status: "section_saved", tab: "sections" }));
+}
+
+/**
+ * Save EVERY section's rotation order in one shot, all-or-nothing.
+ *
+ * Reads one field per section (order_<id>), validates the whole set BEFORE any
+ * write, and only then writes the sections whose order actually changed:
+ *  - every section must have a valid order (whole numbers like 1 or 1,3),
+ *  - every position number must be unique across all sections,
+ *  - nothing is written unless the entire set passes.
+ * On any problem it redirects back with a specific, human message and writes
+ * nothing.
+ */
+export async function saveRotationOrderAction(
+  formData: FormData,
+): Promise<void> {
+  await requireAdminSession();
+
+  const outletId = String(formData.get("outletId") ?? "");
+  if (!outletId) redirect("/admin");
+
+  const sections = await listSectionsForOutlet(outletId);
+  if (sections.length === 0) {
+    redirect(adminUrl(outletId, { status: "rotation_saved", tab: "sections" }));
+  }
+
+  // 1) Parse + per-section validation. Nothing is written in this phase.
+  const parsed: { id: string; name: string; positions: number[]; current: string }[] = [];
+  for (const s of sections) {
+    const positions = parseOrderList(String(formData.get(`order_${s.id}`) ?? ""));
+    if (!positions) {
+      redirect(
+        adminUrl(outletId, {
+          rerror: "order_invalid",
+          rmsg: `“${s.name}”: enter the order as whole numbers like 1 or 1,3.`,
+          tab: "sections",
+        }),
+      );
+    }
+    parsed.push({
+      id: s.id,
+      name: s.name,
+      positions,
+      current: s.orderPositions.join(","),
+    });
+  }
+
+  // 2) Global uniqueness — each position number belongs to exactly one section.
+  const owner = new Map<number, string>();
+  for (const p of parsed) {
+    for (const pos of p.positions) {
+      const existing = owner.get(pos);
+      if (existing && existing !== p.name) {
+        redirect(
+          adminUrl(outletId, {
+            rerror: "order_invalid",
+            rmsg: `Position ${pos} is used by more than one section (“${existing}” and “${p.name}”). Each position must be unique.`,
+            tab: "sections",
+          }),
+        );
+      }
+      owner.set(pos, p.name);
+    }
+  }
+
+  // 3) All valid — write only the sections whose order actually changed.
+  try {
+    for (const p of parsed) {
+      if (p.current !== p.positions.join(",")) {
+        await updateSection(p.id, { orderPositions: p.positions });
+      }
+    }
+  } catch (e) {
+    const rmsg = isMissingRotationOrderColumn(e)
+      ? ROTATION_COLUMN_MSG
+      : "Couldn’t save the rotation order — please try again.";
+    redirect(adminUrl(outletId, { rerror: "order_invalid", rmsg, tab: "sections" }));
+  }
+
+  revalidateAll();
+  redirect(adminUrl(outletId, { status: "rotation_saved", tab: "sections" }));
 }
 
 export async function toggleSectionActiveAction(
@@ -530,23 +650,15 @@ export async function saveNotificationSettingsAction(
 // Operating settings (hours, thresholds, misc amount)
 // ---------------------------------------------------------------------------
 
-const settingsSchema = z
-  .object({
-    outletId: z.string().min(1),
-    outletName: z.string().min(1),
-    operatingHoursStart: z.string().max(20).optional(),
-    operatingHoursEnd: z.string().max(20).optional(),
-    greenThresholdMinutes: z.coerce.number().int().min(1).max(1440),
-    yellowThresholdMinutes: z.coerce.number().int().min(1).max(1440),
-    miscAmount: z.coerce.number().min(0).max(1_000_000),
-  })
-  // Freshness bands are green (most recent) < yellow < red. If green were >=
-  // yellow the yellow band would be unreachable and sections would jump
-  // straight green -> red, so enforce the ordering.
-  .refine((d) => d.greenThresholdMinutes < d.yellowThresholdMinutes, {
-    message: "greenThresholdMinutes must be less than yellowThresholdMinutes",
-    path: ["greenThresholdMinutes"],
-  });
+const settingsSchema = z.object({
+  outletId: z.string().min(1),
+  outletName: z.string().min(1),
+  operatingHoursStart: z.string().max(20).optional(),
+  operatingHoursEnd: z.string().max(20).optional(),
+  greenThresholdMinutes: z.coerce.number().int().min(1).max(1440),
+  yellowThresholdMinutes: z.coerce.number().int().min(1).max(1440),
+  miscAmount: z.coerce.number().min(0).max(1_000_000),
+});
 
 export async function saveSettingsAction(formData: FormData): Promise<void> {
   const session = await requirePortalSession();

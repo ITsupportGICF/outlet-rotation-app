@@ -20,10 +20,9 @@ import {
 import { getDayGoals } from "@/lib/graph/operating-day-goals";
 import {
   getRotationsForOperatingDay,
-  lastRotatedSectionId,
   type RotationRow,
 } from "@/lib/graph/rotation-history";
-import { getNextSectionId } from "@/lib/rotation";
+import { getNextSectionId, advancingPressCount } from "@/lib/rotation";
 import {
   elapsedFraction,
   etDateString,
@@ -101,13 +100,13 @@ export async function getOutletDayView(
     ]);
   }
 
-  // Only Standard + Override rotations advance the automated cycle. Manual
-  // rotations are out-of-band quantity adjustments recorded separately and
-  // must NOT move the "what's next" pointer.
-  const cycleRows = rotations.filter((r) => r.rotationType !== "Manual");
-  const lastSectionId = openDay ? lastRotatedSectionId(cycleRows) : null;
+  // Only Standard + Override rotations advance the automated sequence. Manual
+  // rotations are out-of-band quantity adjustments recorded separately and must
+  // NOT move the "what's next" pointer. The position in the sequence is the
+  // count of advancing presses so far (handles sections that repeat).
+  const advancingCount = advancingPressCount(rotations);
   const nextSectionId = openDay
-    ? getNextSectionId(activeSections, lastSectionId)
+    ? getNextSectionId(activeSections, advancingCount)
     : null;
 
   // Per-section freshness. Baseline "last touch" is the day's start, so at

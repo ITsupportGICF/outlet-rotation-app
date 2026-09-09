@@ -13,6 +13,7 @@ import { getOutletDayView } from "@/lib/graph/day-view";
 import { getOpenOperatingDay } from "@/lib/graph/operating-days";
 import { getDayGoals } from "@/lib/graph/operating-day-goals";
 import { getNotificationSettings } from "@/lib/graph/notifications";
+import { rotationSequence } from "@/lib/rotation";
 import {
   createOutletAction,
   toggleOutletActiveAction,
@@ -24,6 +25,7 @@ import {
   saveGoalsAction,
   applyGoalsToTodayAction,
   saveSectionMixAction,
+  saveRotationOrderAction,
   saveNotificationSettingsAction,
   startDayAction,
   endDayAction,
@@ -42,6 +44,7 @@ const MSG: Record<string, string> = {
   section_added: "Section added.",
   section_saved: "Section saved.",
   section_removed: "Section removed.",
+  rotation_saved: "Rotation order saved for all sections.",
   mix_saved: "Section mix saved.",
   goal_saved: "Goal saved.",
   goals_saved: "Daily goals saved.",
@@ -62,6 +65,10 @@ const RERROR: Record<string, string> = {
   no_mix: "That section has no commodity mix configured yet.",
   unknown_section: "That section isn't recognized for this outlet.",
   no_quantities: "Enter a quantity for at least one commodity before rotating.",
+  invalid_order: "Enter the order as one or more whole numbers, e.g. 1,3.",
+  order_conflict:
+    "That position number is already used by another section — each position must be unique across sections.",
+  order_invalid: "Please fix the rotation order and save again.",
   error: "Something went wrong. Please try again.",
 };
 
@@ -97,6 +104,7 @@ export default async function AdminCenterPage({
   const sec = str(params.sec);
   const msg = str(params.msg);
   const rerror = str(params.rerror);
+  const rmsg = str(params.rmsg);
 
   return (
     <main className="relative min-h-screen">
@@ -111,6 +119,15 @@ export default async function AdminCenterPage({
 
         {!admin ? (
           <div className="glass glass-gold gloss relative mx-auto max-w-md overflow-hidden p-8">
+            {str(params.relogin) && (
+              <div
+                className="mb-5 rounded-xl px-4 py-3 text-sm"
+                style={{ background: "#fdf3d9", border: "1px solid #ecd591", color: "#8a6d0b" }}
+              >
+                Your Admin Center session timed out. Please sign in again — any
+                unsaved changes on the previous screen weren&apos;t saved.
+              </div>
+            )}
             <p className="mb-6 text-center text-base" style={{ color: "rgba(226,235,245,0.72)" }}>
               Enter the Admin Center username and password to continue. Signing in
               with Microsoft 365 gets you into the app — it does not unlock the
@@ -121,7 +138,11 @@ export default async function AdminCenterPage({
         ) : (
           <>
             {msg && <Banner tone="ok">{MSG[msg] ?? "Saved."}</Banner>}
-            {rerror && <Banner tone="error">{RERROR[rerror] ?? "Something went wrong."}</Banner>}
+            {rerror && (
+              <Banner tone="error">
+                {rmsg ?? RERROR[rerror] ?? "Something went wrong."}
+              </Banner>
+            )}
             <AdminWorkspace outletId={outletId} tab={tab} sec={sec} adminName={admin.username} />
           </>
         )}
@@ -371,56 +392,125 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
 
 async function SectionsTab({ outlet }: { outlet: Outlet }) {
   const sections = await listSectionsForOutlet(outlet.id);
+
+  // Preview of the resulting play order (with repeats), e.g. A → B → A → C.
+  const nameById = new Map(sections.map((s) => [s.id, s.name]));
+  const sequenceNames = rotationSequence(sections).map(
+    (id) => nameById.get(id) ?? "?",
+  );
+
   return (
-    <Card title="Sections & rotation order">
-      <p className="mb-4 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
-        Order (lowest first) is the rotation sequence. Only active sections rotate.
-      </p>
-      <div className="mb-6 space-y-3">
-        {sections.length === 0 && <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No sections yet.</p>}
-        {sections.map((s) => (
-          <div key={s.id} className="glass rounded-2xl p-4">
-            <form action={updateSectionAction} className="flex flex-wrap items-end gap-3">
-              <input type="hidden" name="outletId" value={outlet.id} />
-              <input type="hidden" name="itemId" value={s.id} />
-              <Field label="Name">
-                <input name="name" defaultValue={s.name} required className="field-input w-40" />
-              </Field>
-              <Field label="Order">
-                <input name="displayOrder" type="number" min={0} defaultValue={s.displayOrder} className="field-input w-20" />
-              </Field>
-              <label className="flex items-center gap-2 pb-2.5 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
-                <input type="checkbox" name="isActive" defaultChecked={s.isActive} /> Active
-              </label>
-              <SubmitButton className="btn btn-outline btn-sm" overlayLabel="Saving section…">Save</SubmitButton>
-            </form>
-            <div className="mt-2 flex gap-4">
-              <form action={toggleSectionActiveAction.bind(null, outlet.id, s.id, !s.isActive)}>
-                <SubmitButton className="btn btn-ghost btn-sm" overlayLabel="Updating section…">
-                  {s.isActive ? "Deactivate" : "Activate"}
-                </SubmitButton>
-              </form>
-              <form action={deleteSectionAction.bind(null, outlet.id, s.id)}>
-                <SubmitButton className="btn btn-ghost btn-sm" style={{ color: "#c23b3b" }} overlayLabel="Removing section…">Remove</SubmitButton>
-              </form>
+    <div className="space-y-6">
+      {/* Rotation order — ONE Save for every section, all-or-nothing. */}
+      <Card title="Rotation order">
+        <p className="mb-4 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+          Set each section&apos;s position(s) in the rotation. A section can hold
+          more than one position — comma-separated, e.g.{" "}
+          <span style={{ color: "#ffffff" }}>1,3</span> — so it comes around more
+          than once. All positions are sorted across sections to build the
+          sequence. Edit them all, then press <strong>Save rotation order</strong>{" "}
+          once.
+        </p>
+
+        {sections.length === 0 ? (
+          <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>
+            No sections yet — add one under &ldquo;Manage sections&rdquo; first.
+          </p>
+        ) : (
+          <form action={saveRotationOrderAction} className="space-y-4">
+            <input type="hidden" name="outletId" value={outlet.id} />
+            <div className="space-y-2">
+              {sections.map((s) => (
+                <div key={s.id} className="flex items-center gap-3">
+                  <span className="w-44 text-sm font-medium" style={{ color: "#ffffff" }}>
+                    {s.name}
+                    {!s.isActive && (
+                      <span style={{ color: "rgba(226,235,245,0.5)" }}> (inactive)</span>
+                    )}
+                  </span>
+                  <input
+                    name={`order_${s.id}`}
+                    defaultValue={s.orderPositions.join(",")}
+                    placeholder="e.g. 1,3"
+                    className="field-input w-32"
+                  />
+                </div>
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
-      <form action={createSectionAction} className="flex flex-wrap items-end gap-3 border-t pt-5" style={{ borderColor: "rgba(44,62,86,0.08)" }}>
-        <input type="hidden" name="outletId" value={outlet.id} />
-        <Field label="New section name">
-          <input name="name" required placeholder="e.g. Section E" className="field-input w-44" />
-        </Field>
-        <Field label="Order">
-          <input name="displayOrder" type="number" min={0} defaultValue={sections.length} className="field-input w-20" />
-        </Field>
-        <label className="flex items-center gap-2 pb-2.5 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
-          <input type="checkbox" name="isActive" defaultChecked /> Active
-        </label>
-        <SubmitButton className="btn btn-primary btn-md" overlayLabel="Adding section…">Add section</SubmitButton>
-      </form>
-    </Card>
+
+            {sequenceNames.length > 0 && (
+              <div
+                className="rounded-xl px-4 py-3 text-sm"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--gold-border)" }}
+              >
+                <span className="eyebrow" style={{ fontSize: "0.6rem" }}>Current sequence (active sections)</span>
+                <p className="mt-1 font-semibold" style={{ color: "#ffffff" }}>
+                  {sequenceNames.join("  →  ")}{" "}
+                  <span style={{ color: "rgba(226,235,245,0.5)" }}>→ (repeats)</span>
+                </p>
+                <p className="mt-1 text-xs" style={{ color: "rgba(226,235,245,0.5)" }}>
+                  Updates after you save.
+                </p>
+              </div>
+            )}
+
+            <SubmitButton className="btn btn-primary btn-md" overlayLabel="Saving rotation order…">
+              Save rotation order
+            </SubmitButton>
+            <p className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+              Every section needs a valid order and every position number must be
+              unique. Nothing is saved unless all sections pass.
+            </p>
+          </form>
+        )}
+      </Card>
+
+      {/* Manage sections — rename / activate / remove / add (order is above). */}
+      <Card title="Manage sections">
+        <div className="mb-6 space-y-3">
+          {sections.length === 0 && <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No sections yet.</p>}
+          {sections.map((s) => (
+            <div key={s.id} className="glass rounded-2xl p-4">
+              <form action={updateSectionAction} className="flex flex-wrap items-end gap-3">
+                <input type="hidden" name="outletId" value={outlet.id} />
+                <input type="hidden" name="itemId" value={s.id} />
+                <Field label="Name">
+                  <input name="name" defaultValue={s.name} required className="field-input w-40" />
+                </Field>
+                <label className="flex items-center gap-2 pb-2.5 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+                  <input type="checkbox" name="isActive" defaultChecked={s.isActive} /> Active
+                </label>
+                <SubmitButton className="btn btn-outline btn-sm" overlayLabel="Saving section…">Save</SubmitButton>
+              </form>
+              <div className="mt-2 flex gap-4">
+                <form action={toggleSectionActiveAction.bind(null, outlet.id, s.id, !s.isActive)}>
+                  <SubmitButton className="btn btn-ghost btn-sm" overlayLabel="Updating section…">
+                    {s.isActive ? "Deactivate" : "Activate"}
+                  </SubmitButton>
+                </form>
+                <form action={deleteSectionAction.bind(null, outlet.id, s.id)}>
+                  <SubmitButton className="btn btn-ghost btn-sm" style={{ color: "#c23b3b" }} overlayLabel="Removing section…">Remove</SubmitButton>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+        <form action={createSectionAction} className="flex flex-wrap items-end gap-3 border-t pt-5" style={{ borderColor: "rgba(44,62,86,0.08)" }}>
+          <input type="hidden" name="outletId" value={outlet.id} />
+          <Field label="New section name">
+            <input name="name" required placeholder="e.g. Section E" className="field-input w-44" />
+          </Field>
+          <label className="flex items-center gap-2 pb-2.5 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+            <input type="checkbox" name="isActive" defaultChecked /> Active
+          </label>
+          <SubmitButton className="btn btn-primary btn-md" overlayLabel="Adding section…">Add section</SubmitButton>
+        </form>
+        <p className="mt-3 text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+          New sections are added at the next open position — set where they land
+          in the Rotation order above.
+        </p>
+      </Card>
+    </div>
   );
 }
 

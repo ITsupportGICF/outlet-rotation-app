@@ -17,7 +17,6 @@ import {
   graphPost,
   graphPatch,
   graphDelete,
-  requireNumericId,
 } from "@/lib/graph/client";
 import { listContext } from "@/lib/graph/lists";
 
@@ -28,6 +27,12 @@ export type Section = {
   /** Owning outlet's list item id (string form of the lookup id). */
   outletId: string;
   displayOrder: number;
+  /**
+   * One or more 1-based positions this section occupies in the rotation
+   * sequence (a section can appear more than once, e.g. [1, 3]). Falls back to
+   * [displayOrder] for legacy rows that predate the RotationOrder column.
+   */
+  orderPositions: number[];
   isActive: boolean;
 };
 
@@ -35,10 +40,30 @@ type SectionFields = {
   Title: string;
   OutletLookupId?: string | number;
   DisplayOrder?: number;
+  /** Comma-separated positions, e.g. "1,3". Empty/absent -> use DisplayOrder. */
+  RotationOrder?: string;
   IsActive?: boolean;
 };
 
+/** Parse a "1,3" style value into sorted, de-duped, 1-based integers. */
+export function parseRotationOrder(
+  raw: string | undefined | null,
+  fallback: number,
+): number[] {
+  if (raw) {
+    const nums = raw
+      .split(/[,\s]+/)
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isInteger(n) && n >= 1);
+    if (nums.length > 0) {
+      return Array.from(new Set(nums)).sort((a, b) => a - b);
+    }
+  }
+  return [fallback];
+}
+
 function toSection(item: GraphListItem<SectionFields>): Section {
+  const displayOrder = item.fields.DisplayOrder ?? 0;
   return {
     id: item.id,
     name: item.fields.Title,
@@ -46,7 +71,8 @@ function toSection(item: GraphListItem<SectionFields>): Section {
       item.fields.OutletLookupId != null
         ? String(item.fields.OutletLookupId)
         : "",
-    displayOrder: item.fields.DisplayOrder ?? 0,
+    displayOrder,
+    orderPositions: parseRotationOrder(item.fields.RotationOrder, displayOrder),
     isActive: item.fields.IsActive ?? false,
   };
 }
@@ -80,7 +106,7 @@ export async function listActiveSectionsForOutlet(
 export async function createSection(input: {
   name: string;
   outletId: string;
-  displayOrder: number;
+  orderPositions: number[];
   isActive: boolean;
 }): Promise<Section> {
   const { siteId, listId } = await listContext("sections");
@@ -90,7 +116,10 @@ export async function createSection(input: {
       fields: {
         Title: input.name,
         OutletLookupId: Number(input.outletId),
-        DisplayOrder: input.displayOrder,
+        // DisplayOrder is kept in sync with the first position so list sorting
+        // and any legacy reads stay sensible.
+        DisplayOrder: Math.min(...input.orderPositions),
+        RotationOrder: input.orderPositions.join(","),
         IsActive: input.isActive,
       },
     },
@@ -100,13 +129,15 @@ export async function createSection(input: {
 
 export async function updateSection(
   itemId: string,
-  input: Partial<{ name: string; displayOrder: number; isActive: boolean }>,
+  input: Partial<{ name: string; orderPositions: number[]; isActive: boolean }>,
 ): Promise<void> {
-  requireNumericId(itemId);
   const { siteId, listId } = await listContext("sections");
   const fields: Partial<SectionFields> = {};
   if (input.name !== undefined) fields.Title = input.name;
-  if (input.displayOrder !== undefined) fields.DisplayOrder = input.displayOrder;
+  if (input.orderPositions !== undefined) {
+    fields.DisplayOrder = Math.min(...input.orderPositions);
+    fields.RotationOrder = input.orderPositions.join(",");
+  }
   if (input.isActive !== undefined) fields.IsActive = input.isActive;
   await graphPatch(
     `/sites/${siteId}/lists/${listId}/items/${itemId}/fields`,
@@ -115,7 +146,6 @@ export async function updateSection(
 }
 
 export async function deleteSection(itemId: string): Promise<void> {
-  requireNumericId(itemId);
   const { siteId, listId } = await listContext("sections");
   await graphDelete(`/sites/${siteId}/lists/${listId}/items/${itemId}`);
 }

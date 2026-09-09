@@ -25,10 +25,9 @@ import {
   appendRotation,
   appendOverride,
   getRotationsForOperatingDay,
-  lastRotatedSectionId,
   type RotationType,
 } from "@/lib/graph/rotation-history";
-import { getNextSectionId } from "@/lib/rotation";
+import { getNextSectionId, advancingPressCount } from "@/lib/rotation";
 
 export type RotationOutcome =
   | { ok: true; written: number; sectionName: string }
@@ -48,15 +47,8 @@ export type RotationOutcome =
  * rotation rows. Shared by the Standard and Manual entry points. Assumes the
  * caller has already established the right authorization (portal for
  * Standard; portal + admin for Manual).
- *
- * NOTE: module-private on purpose. In the App Router every EXPORTED function
- * in a "use server" file is a callable action endpoint; exporting this would
- * expose a rotation writer that trusts a caller-supplied rotationType and
- * performedByEmail and skips the per-entry auth the exported wrappers add.
- * Its only callers are performRotationAction (below), which set those fields
- * from the server session.
  */
-async function submitRotation(input: {
+export async function submitRotation(input: {
   outletId: string;
   sectionId: string;
   rotationType: RotationType;
@@ -79,11 +71,10 @@ async function submitRotation(input: {
     if (!section) return { ok: false, reason: "unknown_section" };
 
     // THE order check - identical to what the UI uses to disable buttons.
-    // Manual adjustments are out-of-band and don't move the cycle pointer.
-    const cycleRows = rotations.filter((r) => r.rotationType !== "Manual");
+    // Position in the sequence = advancing presses so far (Manual excluded).
     const nextId = getNextSectionId(
       activeSections,
-      lastRotatedSectionId(cycleRows),
+      advancingPressCount(rotations),
     );
     if (input.sectionId !== nextId) return { ok: false, reason: "out_of_order" };
 
@@ -109,9 +100,7 @@ async function submitRotation(input: {
     const latestRotations = await getRotationsForOperatingDay(openDay.id);
     const latestNextId = getNextSectionId(
       activeSections,
-      lastRotatedSectionId(
-        latestRotations.filter((r) => r.rotationType !== "Manual"),
-      ),
+      advancingPressCount(latestRotations),
     );
     if (input.sectionId !== latestNextId)
       return { ok: false, reason: "out_of_order" };
@@ -205,10 +194,9 @@ async function submitOverride(input: {
     const section = activeSections.find((s) => s.id === input.sectionId);
     if (!section) return { ok: false, reason: "unknown_section" };
 
-    const cycleRows = rotations.filter((r) => r.rotationType !== "Manual");
     const nextId = getNextSectionId(
       activeSections,
-      lastRotatedSectionId(cycleRows),
+      advancingPressCount(rotations),
     );
     if (input.sectionId !== nextId) return { ok: false, reason: "out_of_order" };
 
