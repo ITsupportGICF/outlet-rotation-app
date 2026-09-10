@@ -136,6 +136,9 @@ export async function adminLoginAction(
       account_locked:
         "This account is temporarily locked after too many failed attempts. Try again later.",
       account_inactive: "This admin account is inactive.",
+      setup_incomplete:
+        "This account hasn't finished setup yet. Use the setup link from your invite email.",
+      no_portal_access: "This account doesn't have Admin Portal access.",
     };
     return { error: messages[result.reason] };
   }

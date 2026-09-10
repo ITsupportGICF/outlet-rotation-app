@@ -14,6 +14,26 @@ import { getOpenOperatingDay } from "@/lib/graph/operating-days";
 import { getDayGoals } from "@/lib/graph/operating-day-goals";
 import { getNotificationSettings } from "@/lib/graph/notifications";
 import { rotationSequence } from "@/lib/rotation";
+import { getCurrentAdminUser } from "@/lib/auth/current-admin";
+import { listAdminUsers, type AdminUserRecord } from "@/lib/graph/admin-users";
+import {
+  assignableLevels,
+  canChangeLevel,
+  canSetActive,
+  canDeleteUsers,
+  canChangePassword,
+  canChangeUsername,
+  canResendInvite,
+} from "@/lib/auth/permissions";
+import {
+  createAdminUserAction,
+  setUserLevelAction,
+  setUserActiveAction,
+  deleteUserAction,
+  setUserPasswordAction,
+  setUsernameAction,
+  resendInviteAction,
+} from "@/lib/actions/admin-users";
 import {
   createOutletAction,
   toggleOutletActiveAction,
@@ -56,6 +76,15 @@ const MSG: Record<string, string> = {
   already_open: "That outlet already has an open day — end it before starting a new one.",
   no_open_day: "There's no open day to end for that outlet.",
   manual_done: "Manual rotation recorded.",
+  user_created: "Account created and invite generated.",
+  user_updated: "Permission level updated.",
+  user_activated: "Account reactivated.",
+  user_deactivated: "Account deactivated.",
+  user_deleted: "Account deleted.",
+  password_set: "Password updated.",
+  username_changed: "Username updated.",
+  invite_resent: "Invite regenerated.",
+  account_ready: "Your account is set up — you can now sign in to the Admin Center.",
 };
 
 const RERROR: Record<string, string> = {
@@ -69,6 +98,7 @@ const RERROR: Record<string, string> = {
   order_conflict:
     "That position number is already used by another section — each position must be unique across sections.",
   order_invalid: "Please fix the rotation order and save again.",
+  user_error: "That action couldn't be completed.",
   error: "Something went wrong. Please try again.",
 };
 
@@ -80,6 +110,7 @@ const TABS = [
   { key: "goals", label: "Goals" },
   { key: "settings", label: "Settings" },
   { key: "locations", label: "Locations" },
+  { key: "users", label: "Users" },
   { key: "notifications", label: "Notifications" },
 ] as const;
 
@@ -105,6 +136,8 @@ export default async function AdminCenterPage({
   const msg = str(params.msg);
   const rerror = str(params.rerror);
   const rmsg = str(params.rmsg);
+  const invite = str(params.invite);
+  const emailed = str(params.emailed);
 
   return (
     <main className="relative min-h-screen">
@@ -142,6 +175,20 @@ export default async function AdminCenterPage({
               <Banner tone="error">
                 {rmsg ?? RERROR[rerror] ?? "Something went wrong."}
               </Banner>
+            )}
+            {invite && (
+              <div
+                className="mb-5 rounded-xl px-4 py-3 text-sm"
+                style={{ background: "#f4f9fd", border: "1px solid #cfe0f2", color: "#0b3d66" }}
+              >
+                <strong>Invite link.</strong>{" "}
+                {emailed === "1"
+                  ? "An email with this setup link was sent to the user. You can also share it directly:"
+                  : "Email isn't set up (or the send failed), so copy this setup link and send it to the user:"}
+                <div style={{ marginTop: "6px", wordBreak: "break-all" }}>
+                  <a href={invite} style={{ color: "#155a94" }}>{invite}</a>
+                </div>
+              </div>
             )}
             <AdminWorkspace outletId={outletId} tab={tab} sec={sec} adminName={admin.username} />
           </>
@@ -233,6 +280,8 @@ async function AdminWorkspace({
         <LocationsTab outlets={outlets} />
       ) : tab === "notifications" ? (
         <NotificationsTab />
+      ) : tab === "users" ? (
+        <UsersTab />
       ) : !selected ? (
         <Card title="Select an outlet">
           <p className="text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
@@ -692,6 +741,182 @@ function LocationsTab({ outlets }: { outlets: Outlet[] }) {
 // --------------------------------------------------------------------------
 // Shared bits
 // --------------------------------------------------------------------------
+
+async function UsersTab() {
+  const actor = await getCurrentAdminUser();
+  if (!actor) {
+    return (
+      <Card title="Users">
+        <p className="text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+          Your Admin Center session expired.{" "}
+          <Link href="/admin?relogin=1" className="back-link-dark">Sign in again</Link>.
+        </p>
+      </Card>
+    );
+  }
+
+  const levels = assignableLevels(actor.permissionLevel);
+  const canList =
+    actor.permissionLevel === "IT" || actor.permissionLevel === "Super Admin";
+  const users = canList ? await listAdminUsers() : [];
+
+  return (
+    <div className="space-y-6">
+      {levels.length > 0 && (
+        <Card title="Create admin account">
+          <p className="mb-4 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+            Enter the person&apos;s name, email, and permission level. They&apos;ll
+            get an email with a link to sign in with Microsoft 365 and set their
+            own username and password. You can create:{" "}
+            <strong style={{ color: "#ffffff" }}>{levels.join(", ")}</strong>.
+          </p>
+          <form action={createAdminUserAction} className="grid gap-4 sm:grid-cols-2">
+            <Field label="Name">
+              <input name="name" required placeholder="e.g. Jane Doe" className="field-input" />
+            </Field>
+            <Field label="Email">
+              <input name="email" type="email" required placeholder="name@goodwillcfl.org" className="field-input" />
+            </Field>
+            <Field label="Permission level">
+              <select name="permissionLevel" defaultValue={levels[levels.length - 1]} className="field-input">
+                {levels.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </Field>
+            <div className="flex items-end">
+              <SubmitButton className="btn btn-primary btn-md" overlayLabel="Creating account…">
+                Create account
+              </SubmitButton>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      <Card title="Admin accounts">
+        {!canList ? (
+          <p className="text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+            You can create new accounts above. Managing existing accounts is done
+            by Super Admins and IT.
+          </p>
+        ) : users.length === 0 ? (
+          <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No accounts yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {users.map((u) => (
+              <UserRow key={u.itemId} actor={actor} user={u} />
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function UserRow({ actor, user }: { actor: AdminUserRecord; user: AdminUserRecord }) {
+  const isSelf = actor.itemId === user.itemId;
+  const levelOptions = assignableLevels(actor.permissionLevel);
+  const canEditLevel =
+    !isSelf &&
+    levelOptions.some((l) =>
+      canChangeLevel(actor.permissionLevel, user.permissionLevel, l),
+    );
+  const canToggle = !isSelf && canSetActive(actor.permissionLevel, user.permissionLevel);
+  const canDelete = !isSelf && canDeleteUsers(actor.permissionLevel);
+  const canPassword = canChangePassword(actor.permissionLevel);
+  const canUname = canChangeUsername(actor.permissionLevel);
+  const canResend =
+    !user.setupComplete && canResendInvite(actor.permissionLevel, user.permissionLevel);
+  const hasActions =
+    canEditLevel || canToggle || canDelete || canPassword || canUname || canResend;
+
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-semibold" style={{ color: "#ffffff" }}>
+            {user.displayName}
+            {isSelf ? " (you)" : ""}
+          </p>
+          <p className="text-xs" style={{ color: "rgba(226,235,245,0.6)" }}>
+            {user.email} · username: {user.username}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="chip" style={{ background: "rgba(255,255,255,0.08)", color: "#ffffff" }}>
+            {user.permissionLevel}
+          </span>
+          {!user.setupComplete ? (
+            <span className="chip" style={{ background: "#fdf3d9", color: "#8a6d0b" }}>Pending setup</span>
+          ) : user.isActive ? (
+            <span className="chip" style={{ background: "#dff3e6", color: "#1c7a44" }}>Active</span>
+          ) : (
+            <span className="chip" style={{ background: "#fdecec", color: "#9c2c2c" }}>Inactive</span>
+          )}
+        </div>
+      </div>
+
+      {hasActions && (
+        <div
+          className="mt-3 flex flex-wrap items-end gap-3 border-t pt-3"
+          style={{ borderColor: "rgba(255,255,255,0.08)" }}
+        >
+          {canEditLevel && (
+            <form action={setUserLevelAction} className="flex items-end gap-2">
+              <input type="hidden" name="itemId" value={user.itemId} />
+              <label className="block">
+                <span className="field-label">Level</span>
+                <select name="permissionLevel" defaultValue={user.permissionLevel} className="field-input">
+                  {levelOptions.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </label>
+              <SubmitButton className="btn btn-outline btn-sm" overlayLabel="Updating…">Set level</SubmitButton>
+            </form>
+          )}
+          {canToggle && (
+            <form action={setUserActiveAction.bind(null, user.itemId, !user.isActive)}>
+              <SubmitButton className="btn btn-ghost btn-sm" overlayLabel="Updating…">
+                {user.isActive ? "Deactivate" : "Reactivate"}
+              </SubmitButton>
+            </form>
+          )}
+          {canResend && (
+            <form action={resendInviteAction.bind(null, user.itemId)}>
+              <SubmitButton className="btn btn-ghost btn-sm" overlayLabel="Sending…">Resend invite</SubmitButton>
+            </form>
+          )}
+          {canUname && (
+            <form action={setUsernameAction} className="flex items-end gap-2">
+              <input type="hidden" name="itemId" value={user.itemId} />
+              <label className="block">
+                <span className="field-label">Username</span>
+                <input name="username" placeholder="new username" className="field-input w-40" />
+              </label>
+              <SubmitButton className="btn btn-ghost btn-sm" overlayLabel="Saving…">Change</SubmitButton>
+            </form>
+          )}
+          {canPassword && (
+            <form action={setUserPasswordAction} className="flex items-end gap-2">
+              <input type="hidden" name="itemId" value={user.itemId} />
+              <label className="block">
+                <span className="field-label">Set password</span>
+                <input name="password" type="password" placeholder="min 10 chars" autoComplete="new-password" className="field-input w-40" />
+              </label>
+              <SubmitButton className="btn btn-ghost btn-sm" overlayLabel="Saving…">Set</SubmitButton>
+            </form>
+          )}
+          {canDelete && (
+            <form action={deleteUserAction.bind(null, user.itemId)}>
+              <SubmitButton className="btn btn-ghost btn-sm" style={{ color: "#c23b3b" }} overlayLabel="Deleting…">Delete</SubmitButton>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 async function NotificationsTab() {
   const s = await getNotificationSettings();
