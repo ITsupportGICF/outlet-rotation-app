@@ -40,11 +40,11 @@ export function buildInviteEmailHtml(input: {
           App. Click the button below, sign in with your Goodwill Microsoft 365
           account, and choose your own username and password to finish setting up.
         </p>
-        <p style="margin:0 0 20px;">
-          <a href="${link}" style="display:inline-block;background:linear-gradient(135deg,#0b3d66,#155a94);color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:10px;">Set up my account</a>
-        </p>
-        <p style="margin:0 0 6px;color:#8ba5ba;font-size:12px;">If the button doesn't work, copy and paste this link:</p>
-        <p style="margin:0 0 8px;color:#155a94;font-size:12px;word-break:break-all;">${link}</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:4px 0 22px;"><tr><td align="center">
+          <a href="${link}" style="display:inline-block;background-color:#c9a227;background-image:linear-gradient(135deg,#e0bd3d,#c9a227);color:#0b3d66;text-decoration:none;font-weight:700;font-size:17px;line-height:1.2;padding:16px 34px;border-radius:12px;border:2px solid #b8931f;box-shadow:0 4px 12px rgba(11,61,102,0.18);">Click Here to Create Your Account</a>
+        </td></tr></table>
+        <p style="margin:0 0 4px;color:#a7bccd;font-size:11px;">If the button doesn't work, copy and paste this link:</p>
+        <p style="margin:0 0 8px;color:#7d97ac;font-size:11px;word-break:break-all;">${link}</p>
       </td></tr>
       <tr><td style="padding:8px 32px 26px;">
         <p style="margin:0;color:#8ba5ba;font-size:12px;">This link expires in 7 days. If you weren't expecting this, you can ignore this email.</p>
