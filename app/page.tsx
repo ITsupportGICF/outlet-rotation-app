@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth/session";
 import Ambient from "@/app/_components/Ambient";
+import KillSwitchPanel from "@/app/_components/KillSwitchPanel";
 
 const ERROR_MESSAGES: Record<string, string> = {
   access_denied:
@@ -27,6 +28,7 @@ export default async function HomePage(props: PageProps<"/">) {
   return (
     <main className="relative flex min-h-screen items-center justify-center p-6">
       <Ambient />
+      <KillSwitchPanel />
 
       <div className="rise-in glass glass-gold gloss relative w-full max-w-md overflow-hidden p-10 text-center">
         <span

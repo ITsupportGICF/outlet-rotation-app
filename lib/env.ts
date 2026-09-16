@@ -46,6 +46,12 @@ const envSchema = z.object({
   // Optional so the app still boots (showing "not connected yet" messages)
   // before the Sites.Selected grant + site id are in place.
   SHAREPOINT_SITE_ID: z.string().optional(),
+
+  // --- Emergency kill switch ---
+  // Base32 secret for the time-based kill-switch code (see
+  // lib/security/kill-code.ts). Optional: when unset the kill switch is inert
+  // (no code will ever verify), so the app still boots without it.
+  KILL_SWITCH_SECRET: z.string().optional(),
 });
 
 function loadEnv() {

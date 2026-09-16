@@ -90,6 +90,14 @@ export async function graphRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  // 0. Kill switch: if the app has been disabled, no data call proceeds.
+  // Lazy import avoids a static import cycle (app-control imports this file);
+  // isAppKilled is cached, so this stays cheap.
+  const { isAppKilled } = await import("@/lib/graph/app-control");
+  if (await isAppKilled()) {
+    throw new GraphApiError("Application is disabled.", 503, "app_disabled");
+  }
+
   // 1. Must be signed in.
   const session = await getSession();
   if (!session) {
