@@ -220,6 +220,115 @@ const TV_CSS = `
   border-radius: 1rem;
   color: var(--text2);
 }
+
+/* --------------------------------------------------------------------- */
+/* Full-bleed, distance-readable, count-responsive layout                */
+/* Fonts use clamp(min, vw, max) so they scale with the screen; grids    */
+/* use auto-fit so sections/goals flow into as many columns as the width */
+/* allows — adapting to ANY number of sections with no hard-coded limit. */
+/* --------------------------------------------------------------------- */
+.tv-dash .tv-wrap { width: 100%; margin: 0; }
+
+/* Stat row */
+.tv-dash .tv-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(0.6rem, 1vw, 1.25rem);
+}
+.tv-dash .tv-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.7rem, 1.2vw, 1.4rem) clamp(0.6rem, 0.9vw, 1.1rem);
+}
+.tv-dash .tv-stat-value { font-size: clamp(2.75rem, 4.4vw, 5.75rem); }
+.tv-dash .tv-stat-label {
+  margin-top: 0.3rem;
+  font-size: clamp(0.72rem, 0.9vw, 1.05rem);
+}
+
+/* Sections — flow edge to edge, as many columns as fit */
+.tv-dash .tv-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: clamp(0.6rem, 1vw, 1.25rem);
+}
+.tv-dash .tv-sec-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(0.35rem, 0.7vw, 0.8rem);
+  padding: clamp(0.85rem, 1.3vw, 1.6rem) clamp(1rem, 1.6vw, 1.9rem);
+}
+.tv-dash .tv-sec-top {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.6rem, 1vw, 1rem);
+}
+.tv-dash .tv-sec-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(1.6rem, 2.1vw, 3rem);
+  font-weight: 700;
+  line-height: 1.08;
+  overflow-wrap: break-word;
+}
+.tv-dash .tv-sec-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.tv-dash .tv-sec-status {
+  font-size: clamp(1.05rem, 1.3vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+}
+.tv-dash .tv-sec-last { font-size: clamp(0.85rem, 0.95vw, 1.2rem); white-space: nowrap; }
+.tv-dash .tv-dot-lg {
+  display: inline-block;
+  flex: none;
+  height: clamp(1rem, 1.4vw, 1.75rem);
+  width: clamp(1rem, 1.4vw, 1.75rem);
+  border-radius: 999px;
+}
+.tv-dash .tv-next-lg {
+  display: inline-block;
+  flex: none;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  font-size: clamp(0.8rem, 0.95vw, 1.2rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: rgba(79,140,201,0.16);
+  color: #bcd6ef;
+  border: 1px solid rgba(79,140,201,0.5);
+}
+
+/* Goals — also flow into columns to use the width */
+.tv-dash .tv-goals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: clamp(0.6rem, 1vw, 1.25rem);
+}
+.tv-dash .tv-goal-card { padding: clamp(0.9rem, 1.3vw, 1.6rem) clamp(1rem, 1.6vw, 1.9rem); }
+.tv-dash .tv-goal-name {
+  font-size: clamp(1.35rem, 1.8vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.tv-dash .tv-goal-value {
+  font-size: clamp(2.1rem, 3.1vw, 4.25rem);
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.tv-dash .tv-goal-goal { font-size: clamp(1rem, 1.25vw, 1.7rem); font-weight: 500; }
+.tv-dash .tv-goal-pace { font-size: clamp(0.85rem, 1vw, 1.3rem); }
+.tv-dash .tv-track-lg { height: clamp(0.85rem, 1.1vw, 1.5rem); }
 `;
 
 type TvStatus = { solid: string; text: string };
@@ -289,7 +398,7 @@ async function OutletDashboard({ outletId }: { outletId: string }) {
   const needsRotation = sections.filter((s) => s.freshness === "red").length;
 
   return (
-    <main className="tv-dash relative flex min-h-screen flex-col px-5 py-6 sm:px-8">
+    <main className="tv-dash relative flex min-h-screen flex-col px-4 py-6">
       <style>{TV_CSS}</style>
       <AutoRefresh outletId={outletId} />
 
@@ -299,8 +408,15 @@ async function OutletDashboard({ outletId }: { outletId: string }) {
 
       <header className="mb-8 text-center">
         <p className="tv-eyebrow">Goodwill Outlet · {outlet.name}</p>
-        <h1 className="tv-title mt-2 text-5xl font-bold sm:text-6xl">Section Rotation</h1>
-        <p className="tv-sub mt-2 text-xl">{dateLabel}</p>
+        <h1
+          className="tv-title mt-2 font-bold"
+          style={{ fontSize: "clamp(2.75rem, 5vw, 5.5rem)" }}
+        >
+          Section Rotation
+        </h1>
+        <p className="tv-sub mt-2" style={{ fontSize: "clamp(1.1rem, 1.5vw, 1.9rem)" }}>
+          {dateLabel}
+        </p>
         <div className="mt-4">
           {!openDay ? (
             <span className="tv-chip warn">Day not started</span>
@@ -320,44 +436,42 @@ async function OutletDashboard({ outletId }: { outletId: string }) {
       </header>
 
       {/* Stat row */}
-      <section className="mx-auto mb-9 grid w-full max-w-3xl grid-cols-3 gap-4 sm:gap-5">
+      <section className="tv-wrap tv-stats mb-9">
         <StatTile label="Total Rotations" value={String(totalRotations)} />
         <StatTile label="Goals Met" value={goalsTotal > 0 ? `${goalsMet}/${goalsTotal}` : "—"} />
         <StatTile label="Needs Rotation" value={String(needsRotation)} />
       </section>
 
       {/* Sections FIRST */}
-      <section className="mx-auto mb-10 w-full max-w-3xl">
+      <section className="tv-wrap mb-10">
         <h2 className="tv-section-head mb-4">Sections</h2>
         {sections.length === 0 ? (
           <p className="tv-muted text-center text-lg">No active sections configured.</p>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="tv-sections">
             {sections.map((s) => {
               const fresh = tvStatus(s.freshness);
               return (
                 <div
                   key={s.section.id}
-                  className={`tv-card ${s.isNext ? "tv-card--next" : ""} flex items-center justify-between px-6 py-5`}
+                  className={`tv-card ${s.isNext ? "tv-card--next" : ""} tv-sec-card`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="tv-sec-top">
                     <span
-                      className="tv-dot"
+                      className="tv-dot-lg"
                       style={{ background: fresh.solid }}
                       aria-hidden="true"
                     />
-                    <span className="tv-name text-2xl font-semibold sm:text-3xl">
-                      {s.section.name}
-                    </span>
-                    {s.isNext && <span className="tv-next">NEXT</span>}
+                    <span className="tv-name tv-sec-name">{s.section.name}</span>
+                    {s.isNext && <span className="tv-next-lg">NEXT</span>}
                   </div>
-                  <div className="text-right">
-                    <p className="text-base font-semibold sm:text-lg" style={{ color: fresh.text }}>
+                  <div className="tv-sec-meta">
+                    <span className="tv-sec-status" style={{ color: fresh.text }}>
                       {freshnessLabel(s.freshness)}
-                    </p>
-                    <p className="tv-muted text-sm">
+                    </span>
+                    <span className="tv-muted tv-sec-last">
                       {s.lastRotatedAt ? `Last: ${formatClockTime(s.lastRotatedAt)}` : "Not yet today"}
-                    </p>
+                    </span>
                   </div>
                 </div>
               );
@@ -367,37 +481,35 @@ async function OutletDashboard({ outletId }: { outletId: string }) {
       </section>
 
       {/* Commodity goals BELOW */}
-      <section className="mx-auto w-full max-w-3xl flex-1">
+      <section className="tv-wrap flex-1">
         <h2 className="tv-section-head mb-4">Today&apos;s Goals</h2>
         {commodityProgress.length === 0 ? (
           <p className="tv-muted text-center text-lg">No commodities configured.</p>
         ) : (
-          <div className="space-y-4">
+          <div className="tv-goals">
             {commodityProgress.map((c) => {
               const st = tvStatus(openDay ? c.status : "none");
               const pct =
                 c.goal > 0 ? Math.min(100, Math.round((c.actual / c.goal) * 100)) : 0;
               return (
-                <div key={c.commodity.id} className="tv-card px-6 py-5">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="tv-name text-xl font-semibold sm:text-2xl">
-                      {c.commodity.name}
-                    </span>
+                <div key={c.commodity.id} className="tv-card tv-goal-card">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="tv-name tv-goal-name">{c.commodity.name}</span>
                     <span
-                      className="text-3xl font-bold sm:text-4xl"
+                      className="tv-goal-value shrink-0"
                       style={{ color: st.text, fontVariantNumeric: "tabular-nums" }}
                     >
                       {c.actual}
-                      <span className="tv-muted text-lg font-medium">
+                      <span className="tv-muted tv-goal-goal">
                         {" "}/ {c.goal}
                       </span>
                     </span>
                   </div>
-                  <div className="tv-track">
+                  <div className="tv-track tv-track-lg">
                     <div className="tv-fill" style={{ width: `${pct}%`, background: st.solid }} />
                   </div>
                   {openDay && c.goal > 0 && (
-                    <p className="mt-2 text-sm" style={{ color: st.text }}>
+                    <p className="tv-goal-pace mt-2" style={{ color: st.text }}>
                       {paceLabel(c.status)} · expected ~{Math.round(c.expected)} by now
                     </p>
                   )}
@@ -413,8 +525,8 @@ async function OutletDashboard({ outletId }: { outletId: string }) {
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="tv-card tv-stat flex flex-col items-center justify-center px-4 py-6">
-      <span className="tv-stat-value text-4xl sm:text-5xl">{value}</span>
+    <div className="tv-card tv-stat tv-stat-card">
+      <span className="tv-stat-value">{value}</span>
       <span className="tv-stat-label">{label}</span>
     </div>
   );
