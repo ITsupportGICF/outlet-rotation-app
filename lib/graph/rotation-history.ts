@@ -198,3 +198,39 @@ export function lastRotatedSectionId(rows: RotationRow[]): string | null {
   }
   return latest?.sectionId ?? null;
 }
+
+/**
+ * Remove the rows of ONE rotation press, then prove they are gone.
+ *
+ * Undo is the only operation in the app that removes rotation rows, so it is
+ * deliberately narrow: it deletes the exact item ids it was given — never a
+ * query, never a range — so no unrelated record can be caught up in it.
+ *
+ * If a delete fails partway (throttling, a dropped connection) we keep going
+ * rather than stopping: a half-removed press would leave the day's quantities
+ * wrong, whereas finishing the removal restores a consistent state. Whatever
+ * happens, the press is re-read from SharePoint afterwards and the surviving
+ * ids are reported back, so the caller can refuse to claim success unless the
+ * data really did revert. Re-running the undo simply removes any remainder.
+ *
+ * @returns the ids that still exist after the attempt (empty = fully undone)
+ */
+export async function deleteRotationRows(
+  operatingDayId: string,
+  rowIds: string[],
+): Promise<string[]> {
+  const { siteId, listId } = await listContext("rotationHistory");
+
+  for (const id of rowIds) {
+    try {
+      await graphDelete(`/sites/${siteId}/lists/${listId}/items/${id}`);
+    } catch {
+      // Keep going; the verification pass below is what decides the outcome.
+    }
+  }
+
+  // Verify against SharePoint itself rather than trusting the delete calls.
+  const remaining = await getRotationsForOperatingDay(operatingDayId);
+  const stillThere = new Set(remaining.map((r) => r.id));
+  return rowIds.filter((id) => stillThere.has(id));
+}

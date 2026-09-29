@@ -26,6 +26,13 @@ const RERROR: Record<string, string> = {
   unknown_section: "That section isn't recognized for this outlet.",
   wrong_location:
     "This device is signed in to a different store and can't rotate at that outlet.",
+  nothing_to_undo: "There's no rotation to undo yet today.",
+  undo_expired:
+    "That rotation can no longer be undone — undo is available for 2 minutes after a rotation.",
+  undo_conflict:
+    "Another rotation was recorded just now, so that undo no longer applies. Check the latest rotation and try again.",
+  undo_failed:
+    "The rotation could not be undone and nothing was changed. Please try again.",
   error: "Something went wrong. Please try again.",
 };
 
@@ -37,11 +44,12 @@ export default function ActionFeedback() {
 
   const done = params.get("done");
   const overridden = params.get("overridden");
+  const undone = params.get("undone");
   const rerror = params.get("rerror");
   const outletId = params.get("outletId");
 
-  const sig = `${done}|${overridden}|${rerror}`;
-  const hasIncoming = sig !== "null|null|null";
+  const sig = `${done}|${overridden}|${undone}|${rerror}`;
+  const hasIncoming = sig !== "null|null|null|null";
   const visible = hasIncoming && sig !== dismissedSig;
 
   useEffect(() => {
@@ -83,11 +91,18 @@ export default function ActionFeedback() {
   }
 
   const isSuccess = Boolean(done);
-  const title = isSuccess ? "Section Rotated Successfully" : "Section Skipped";
-  const detail = isSuccess
-    ? `${done} is done — next section is ready.`
-    : `${overridden} was overridden. A notification was sent.`;
-  const badgeColor = isSuccess ? "#1c7a44" : "#8a6d0b";
+  const isUndone = Boolean(undone);
+  const title = isUndone
+    ? "Rotation Undone"
+    : isSuccess
+      ? "Section Rotated Successfully"
+      : "Section Skipped";
+  const detail = isUndone
+    ? `${undone} was undone and is next to rotate again. A notification was sent.`
+    : isSuccess
+      ? `${done} is done — next section is ready.`
+      : `${overridden} was overridden. A notification was sent.`;
+  const badgeColor = isUndone ? "#c23b3b" : isSuccess ? "#1c7a44" : "#8a6d0b";
 
   return (
     <div

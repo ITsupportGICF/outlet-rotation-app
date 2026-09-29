@@ -23,7 +23,7 @@ import {
 import { listContext } from "@/lib/graph/lists";
 import { sendAppMail } from "@/lib/graph/mail";
 
-export type NotificationKind = "endOfDay" | "configChange" | "override";
+export type NotificationKind = "endOfDay" | "configChange" | "override" | "undo";
 
 export type NotificationSettings = {
   itemId: string | null;
@@ -127,6 +127,8 @@ export async function notify(
 ): Promise<void> {
   try {
     const s = await getNotificationSettings();
+    // "undo" rides the same rotation-alert toggle as "override" — both are
+    // rotation-floor events — so no new NotificationSettings column is needed.
     const enabled =
       kind === "endOfDay"
         ? s.endOfDay
@@ -188,6 +190,55 @@ export function buildOverrideEmailHtml(input: {
       </td></tr>
       <tr><td style="padding:24px 24px 8px;">
         <p style="margin:0 0 12px;color:#0b3d66;font-size:15px;font-weight:600;">A rotation section was intentionally skipped; the rotation moved on to the next section in order.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:12px;overflow:hidden;">
+          ${body}
+        </table>
+      </td></tr>
+      <tr><td style="padding:16px 32px 24px;">
+        <p style="margin:0;color:#8ba5ba;font-size:12px;">Outlet Rotation App · Goodwill Industries of Central Florida · Automated notification</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>`;
+}
+
+/** Undo (last rotation reverted) email body — same styling as the others. */
+export function buildUndoEmailHtml(input: {
+  store: string;
+  section: string;
+  byEmail: string;
+  dateLabel: string;
+  timeLabel: string;
+  rotationTimeLabel: string;
+}): string {
+  const rows: { label: string; value: string }[] = [
+    { label: "Store", value: input.store },
+    { label: "Section", value: input.section },
+    { label: "Rotation time", value: input.rotationTimeLabel },
+    { label: "Undone by", value: input.byEmail },
+    { label: "Date", value: input.dateLabel },
+    { label: "Undone at", value: input.timeLabel },
+  ];
+  const body = rows
+    .map((r, i) => {
+      const bg = i % 2 === 0 ? "#f4f9fd" : "#ffffff";
+      return `<tr>
+        <td style="padding:12px 18px;background:${bg};color:#5b7994;font-size:13px;width:150px;border-top:1px solid #e6eef6;">${escapeHtml(r.label)}</td>
+        <td style="padding:12px 18px;background:${bg};color:#0b3d66;font-size:14px;font-weight:600;border-top:1px solid #e6eef6;">${escapeHtml(r.value)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef5fb;padding:24px 12px;font-family:'Segoe UI',Arial,sans-serif;">
+  <tr><td align="center">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px rgba(11,61,102,0.12);">
+      <tr><td style="background:linear-gradient(135deg,#0b3d66 0%,#155a94 100%);padding:26px 32px;border-bottom:4px solid #c9a227;">
+        <p style="margin:0;color:#dbe9f7;font-size:12px;letter-spacing:3px;text-transform:uppercase;">Outlet Rotation App</p>
+        <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Rotation Undone</h1>
+        <p style="margin:6px 0 0;color:#bcd4ec;font-size:14px;">${escapeHtml(input.store)} · ${escapeHtml(input.dateLabel)} · ${escapeHtml(input.timeLabel)}</p>
+      </td></tr>
+      <tr><td style="padding:24px 24px 8px;">
+        <p style="margin:0 0 12px;color:#0b3d66;font-size:15px;font-weight:600;">At ${escapeHtml(input.timeLabel)}, the ${escapeHtml(input.store)} outlet undid the ${escapeHtml(input.section)} rotation. The rotation order has moved back to that section.</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:12px;overflow:hidden;">
           ${body}
         </table>

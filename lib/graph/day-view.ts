@@ -22,7 +22,12 @@ import {
   getRotationsForOperatingDay,
   type RotationRow,
 } from "@/lib/graph/rotation-history";
-import { getNextSectionId, advancingPressCount } from "@/lib/rotation";
+import {
+  getNextSectionId,
+  advancingPressCount,
+  lastPress as computeLastPress,
+  type RotationPress,
+} from "@/lib/rotation";
 import {
   elapsedFraction,
   etDateString,
@@ -66,6 +71,13 @@ export type OutletDayView = {
   commodityProgress: CommodityProgress[];
   fractionElapsed: number;
   totalRotations: number;
+  /**
+   * The most recent press of the day, or null if nothing has been recorded.
+   * The Input Screen uses this to offer "Undo Last Rotation" inside its
+   * 2-minute window. Derived from the rows already fetched here, so it costs
+   * no extra SharePoint call.
+   */
+  lastPress: RotationPress | null;
 };
 
 /**
@@ -225,5 +237,6 @@ export async function getOutletDayView(
     commodityProgress,
     fractionElapsed,
     totalRotations,
+    lastPress: openDay ? computeLastPress(rotations) : null,
   };
 }

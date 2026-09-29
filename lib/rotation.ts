@@ -96,3 +96,86 @@ export function isSectionRotatable(
 ): boolean {
   return getNextSectionId(sections, advancingCount) === candidateSectionId;
 }
+
+/* ------------------------------------------------------------------------- */
+/* Undo of the most recent press                                             */
+/*                                                                           */
+/* A "press" is every RotationHistory row sharing one (section, RotatedAt).   */
+/* Because EVERY dashboard figure is derived from those rows — the order      */
+/* pointer, section freshness, the day's totals and commodity goals — undoing */
+/* a press is simply removing its rows: all derived state reverts on its own  */
+/* and no read path has to know undo exists.                                  */
+/*                                                                           */
+/* These helpers are pure so the same rule decides what the button shows and  */
+/* what the server will actually allow. The server ALWAYS re-checks with      */
+/* isUndoable() before deleting anything — the countdown in the browser is    */
+/* only a courtesy and is never trusted.                                      */
+/* ------------------------------------------------------------------------- */
+
+/** How long after a rotation it may still be undone. */
+export const UNDO_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+
+/** The minimal shape the undo helpers need from a RotationHistory row. */
+export type PressRow = {
+  id: string;
+  sectionId: string;
+  quantity: number;
+  rotationType: string;
+  rotatedAt: string | null;
+};
+
+/** One identified press, and exactly which rows make it up. */
+export type RotationPress = {
+  sectionId: string;
+  /** The press's own stored timestamp — the 2-minute window is measured from
+   *  this, never from when a page was opened or refreshed. */
+  rotatedAt: string;
+  rotationType: string;
+  /** The SharePoint item ids belonging to this press, and only this press. */
+  rowIds: string[];
+  totalQuantity: number;
+};
+
+/**
+ * The most recent press of the day, or null when nothing has been recorded.
+ *
+ * Rows without a timestamp can't be placed in time and are ignored. If two
+ * sections somehow share the exact same timestamp, one is chosen
+ * deterministically so the same press is identified on every call.
+ */
+export function lastPress(rows: PressRow[]): RotationPress | null {
+  let latest: string | null = null;
+  for (const r of rows) {
+    if (r.rotatedAt && (latest === null || r.rotatedAt > latest)) latest = r.rotatedAt;
+  }
+  if (latest === null) return null;
+
+  const atSameTime = rows.filter((r) => r.rotatedAt === latest);
+  const sectionId = [...atSameTime.map((r) => r.sectionId)].sort()[0];
+  const press = atSameTime.filter((r) => r.sectionId === sectionId);
+  if (press.length === 0) return null;
+
+  return {
+    sectionId,
+    rotatedAt: latest,
+    rotationType: press[0].rotationType,
+    rowIds: press.map((r) => r.id),
+    totalQuantity: press.reduce((sum, r) => sum + (r.quantity || 0), 0),
+  };
+}
+
+/** The instant (ms since epoch) at which this press stops being undoable. */
+export function undoExpiresAt(press: RotationPress): number {
+  return Date.parse(press.rotatedAt) + UNDO_WINDOW_MS;
+}
+
+/**
+ * Whether this press may still be undone. Measured from the press's own
+ * stored timestamp, so refreshing the page or navigating away and back cannot
+ * extend it.
+ */
+export function isUndoable(press: RotationPress, now: Date = new Date()): boolean {
+  const at = Date.parse(press.rotatedAt);
+  if (Number.isNaN(at)) return false;
+  return now.getTime() < at + UNDO_WINDOW_MS;
+}

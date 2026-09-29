@@ -10,7 +10,9 @@ import { formatTimeFriendly, formatClockTime } from "@/lib/time";
 import Ambient from "@/app/_components/Ambient";
 import AppHeader from "@/app/_components/AppHeader";
 import OutletPicker from "@/app/_components/OutletPicker";
+import { undoExpiresAt } from "@/lib/rotation";
 import RotateControls from "./RotateControls";
+import UndoLastRotation from "./UndoLastRotation";
 import ActionFeedback from "./ActionFeedback";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -117,7 +119,12 @@ async function OutletInput({ outletId }: { outletId: string }) {
     );
   }
 
-  const { outlet, openDay, sections, nextSectionId, totalRotations } = view;
+  const { outlet, openDay, sections, nextSectionId, totalRotations, lastPress } = view;
+
+  const undoSectionName = lastPress
+    ? (sections.find((s) => s.section.id === lastPress.sectionId)?.section.name ??
+      "the last section")
+    : null;
 
   return (
     <div className="space-y-6">
@@ -137,6 +144,15 @@ async function OutletInput({ outletId }: { outletId: string }) {
           </Link>
         </div>
       </div>
+
+      {openDay && lastPress && undoSectionName && (
+        <UndoLastRotation
+          outletId={outlet.id}
+          sectionName={undoSectionName}
+          rotatedAt={lastPress.rotatedAt}
+          expiresAtMs={undoExpiresAt(lastPress)}
+        />
+      )}
 
       {!openDay ? (
         <div
