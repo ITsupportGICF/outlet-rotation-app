@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getSession, hasPortalAccess } from "@/lib/auth/session";
-import { listActiveOutlets } from "@/lib/graph/outlets";
+import { getOutletAccess } from "@/lib/auth/locations";
 import { getOutletDayView } from "@/lib/graph/day-view";
 import { freshnessLabel } from "@/lib/ui";
 import type { PaceStatus } from "@/lib/time";
@@ -40,6 +40,43 @@ export default async function LiveDashboardPage({
   const params = await searchParams;
   const outletId = str(params.outletId);
 
+  // Location gate. A dedicated store account (Taft / Pine Hills) may only ever
+  // display its own outlet, including when an ?outletId= for the other store
+  // is typed in. Every other user is unrestricted, exactly as before.
+  let access: Awaited<ReturnType<typeof getOutletAccess>> | null = null;
+  let accessError = false;
+  try {
+    access = await getOutletAccess(session);
+  } catch {
+    accessError = true;
+  }
+
+  // Fail CLOSED: if we couldn't establish who this is allowed to see, show the
+  // setup notice rather than rendering an outlet we haven't authorized.
+  if (accessError || !access) {
+    return (
+      <DashboardNotice>
+        SharePoint isn&apos;t connected yet. Once configured, the dashboard will
+        appear here.
+      </DashboardNotice>
+    );
+  }
+
+  if (access.restricted) {
+    if (!access.soleOutletId) {
+      return (
+        <DashboardNotice>
+          This TV is signed in as the {access.label ?? "store"} account, but no
+          active {access.label ?? "store"} outlet is configured. Ask an admin to
+          activate it in the Admin Center.
+        </DashboardNotice>
+      );
+    }
+    if (outletId !== access.soleOutletId) {
+      redirect(`/dashboard?outletId=${encodeURIComponent(access.soleOutletId)}`);
+    }
+  }
+
   if (!outletId) {
     return (
       <main className="relative min-h-screen px-6 py-10">
@@ -51,7 +88,12 @@ export default async function LiveDashboardPage({
               ← Home
             </Link>
           </div>
-          <DashboardOutletPicker />
+          <OutletPicker
+            outlets={access.outlets}
+            basePath="/dashboard"
+            title="Choose an outlet to display"
+            subtitle="Open this page on the store TV, pick the outlet, then bookmark it."
+          />
         </div>
       </main>
     );
@@ -60,32 +102,25 @@ export default async function LiveDashboardPage({
   return <OutletDashboard outletId={outletId} />;
 }
 
-async function DashboardOutletPicker() {
-  let outlets: { id: string; name: string }[] = [];
-  let setupError = false;
-  try {
-    outlets = await listActiveOutlets();
-  } catch {
-    setupError = true;
-  }
-  if (setupError) {
-    return (
-      <div
-        className="rounded-2xl p-6 text-base"
-        style={{ background: "#fff6e0", border: "1px solid #f0d78a", color: "#7a5c05" }}
-      >
-        SharePoint isn&apos;t connected yet. Once configured, outlets will appear
-        here.
-      </div>
-    );
-  }
+function DashboardNotice({ children }: { children: React.ReactNode }) {
   return (
-    <OutletPicker
-      outlets={outlets}
-      basePath="/dashboard"
-      title="Choose an outlet to display"
-      subtitle="Open this page on the store TV, pick the outlet, then bookmark it."
-    />
+    <main className="relative min-h-screen px-6 py-10">
+      <Ambient />
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="page-title text-2xl font-semibold">Live Dashboard</h1>
+          <Link href="/home" className="btn btn-outline btn-sm">
+            ← Home
+          </Link>
+        </div>
+        <div
+          className="rounded-2xl p-6 text-base"
+          style={{ background: "#fff6e0", border: "1px solid #f0d78a", color: "#7a5c05" }}
+        >
+          {children}
+        </div>
+      </div>
+    </main>
   );
 }
 
@@ -467,7 +502,7 @@ async function OutletDashboard({ outletId }: { outletId: string }) {
                   </div>
                   <div className="tv-sec-meta">
                     <span className="tv-sec-status" style={{ color: fresh.text }}>
-                      {freshnessLabel(s.freshness)}
+                      {s.awaitingFirstRotation ? "Ready" : freshnessLabel(s.freshness)}
                     </span>
                     <span className="tv-muted tv-sec-last">
                       {s.lastRotatedAt ? `Last: ${formatClockTime(s.lastRotatedAt)}` : "Not yet today"}

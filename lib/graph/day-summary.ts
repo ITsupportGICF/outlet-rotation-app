@@ -7,11 +7,14 @@
  * id and reports on it whether it is open or closed.
  *
  * Rotation-type semantics match the rest of the app:
- *  - Standard = a real rotation press (one press writes one row per commodity,
- *    all sharing a RotatedAt). Drives totals and goal progress.
- *  - Override = an intentional skip (one row, quantity 0). Counted on its own.
- *  - Manual = an out-of-band quantity adjustment. Counted on its own; never
- *    folded into the Standard totals or goals.
+ *  - Standard = a rotation press from the Input Screen (one press writes one
+ *    row per commodity, all sharing a RotatedAt).
+ *  - Manual = the same thing recorded from the Admin Center after the fact.
+ *  - Both are REAL rotations: they drive totals, units and goal progress
+ *    together, so this report matches what the Live Dashboard showed. Manual
+ *    is also counted on its own so the report can break it out.
+ *  - Override = an intentional skip (one row, quantity 0). Counted on its own
+ *    and never contributes units or rotations.
  */
 import "server-only";
 
@@ -26,11 +29,11 @@ import { minutesBetween } from "@/lib/time";
 export type CommodityDaySummary = {
   commodityId: string;
   commodityName: string;
-  /** Units rotated via Standard presses. */
+  /** Units rotated, Standard + Manual presses together. */
   totalQuantity: number;
-  /** Number of Standard presses that included this commodity. */
+  /** Number of presses (Standard + Manual) that included this commodity. */
   rotations: number;
-  /** Units recorded via Manual adjustments (kept separate from Standard). */
+  /** Of the above, units recorded via Manual presses (audit breakdown). */
   manualQuantity: number;
   goal: number;
   goalMet: boolean;
@@ -39,7 +42,7 @@ export type CommodityDaySummary = {
 export type SectionDaySummary = {
   sectionId: string;
   sectionName: string;
-  /** Number of Standard rotation presses for this section. */
+  /** Number of real rotation presses (Standard + Manual) for this section. */
   rotations: number;
   /** Number of Override (skip) presses for this section. */
   overrides: number;
@@ -53,13 +56,13 @@ export type EndOfDaySummary = {
   endedAt: string | null;
   status: OperatingDay["status"] | null;
   durationMinutes: number | null;
-  /** Standard rotation presses across all sections. */
+  /** Real rotation presses (Standard + Manual) across all sections. */
   totalRotations: number;
-  /** Total commodity units rotated via Standard presses. */
+  /** Total commodity units rotated (Standard + Manual presses). */
   totalUnits: number;
   /** Override (skip) presses. */
   overrides: number;
-  /** Manual adjustment presses. */
+  /** Of totalRotations, how many were Manual (audit breakdown). */
   manualRotations: number;
   goalsMet: number;
   goalsTotal: number;
@@ -127,21 +130,29 @@ export async function getEndOfDaySummary(
     if (!r.rotatedAt) continue;
     const key = pressKey(r.sectionId, r.rotatedAt);
 
-    if (r.rotationType === "Standard") {
-      standardPresses.add(key);
-      standardQtyByCommodity.set(
-        r.commodityId,
-        (standardQtyByCommodity.get(r.commodityId) ?? 0) + r.quantity,
-      );
-      standardRowsByCommodity.set(
-        r.commodityId,
-        (standardRowsByCommodity.get(r.commodityId) ?? 0) + 1,
-      );
-      addToSectionSet(standardPressesBySection, r.sectionId, key);
-    } else if (r.rotationType === "Override") {
+    if (r.rotationType === "Override") {
+      // A deliberate skip: no stock moved, so it never adds units or rotations.
       overridePresses.add(key);
       addToSectionSet(overridePressesBySection, r.sectionId, key);
-    } else if (r.rotationType === "Manual") {
+      continue;
+    }
+
+    // Standard and Manual are both REAL rotations and are totalled together,
+    // so this report agrees with what the Live Dashboard showed during the day
+    // (see lib/graph/day-view.ts). Manual is additionally tracked on its own
+    // below, so the report can still show "of which N were manual".
+    standardPresses.add(key);
+    standardQtyByCommodity.set(
+      r.commodityId,
+      (standardQtyByCommodity.get(r.commodityId) ?? 0) + r.quantity,
+    );
+    standardRowsByCommodity.set(
+      r.commodityId,
+      (standardRowsByCommodity.get(r.commodityId) ?? 0) + 1,
+    );
+    addToSectionSet(standardPressesBySection, r.sectionId, key);
+
+    if (r.rotationType === "Manual") {
       manualPresses.add(key);
       manualQtyByCommodity.set(
         r.commodityId,
@@ -318,7 +329,7 @@ export function buildEndOfDayEmailHtml(
           </tr>
           <tr>
             ${statCell("Skipped / Overridden", String(summary.overrides))}
-            ${statCell("Manual", String(summary.manualRotations))}
+            ${statCell("Of Which Manual", String(summary.manualRotations))}
             ${statCell("Open Time", formatDurationLabel(summary.durationMinutes))}
           </tr>
         </table>

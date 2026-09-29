@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { getSession, hasPortalAccess } from "@/lib/auth/session";
+import { sessionCanUseOutlet } from "@/lib/auth/locations";
 import { getOpenOperatingDay } from "@/lib/graph/operating-days";
 import { getOutlet } from "@/lib/graph/outlets";
 import { listActiveSectionsForOutlet } from "@/lib/graph/sections";
@@ -139,6 +140,12 @@ export async function performRotationAction(formData: FormData): Promise<void> {
     redirect("/input");
   }
 
+  // Location gate: a dedicated store account can only rotate at its own
+  // outlet, even if the form was tampered with to carry another outlet id.
+  if (!(await sessionCanUseOutlet(session, outletId))) {
+    redirect("/input?rerror=wrong_location");
+  }
+
   const outcome = await submitRotation({
     outletId,
     sectionId,
@@ -249,6 +256,11 @@ export async function overrideSectionAction(formData: FormData): Promise<void> {
   const sectionId = String(formData.get("sectionId") ?? "");
   if (!outletId || !sectionId) {
     redirect("/input");
+  }
+
+  // Same location gate as a rotation.
+  if (!(await sessionCanUseOutlet(session, outletId))) {
+    redirect("/input?rerror=wrong_location");
   }
 
   const outcome = await submitOverride({

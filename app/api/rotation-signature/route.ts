@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRotationSignature } from "@/lib/graph/day-view";
 import { GraphApiError } from "@/lib/graph/client";
 import { getSession, hasPortalAccess } from "@/lib/auth/session";
+import { sessionCanUseOutlet } from "@/lib/auth/locations";
 
 /**
  * Cheap polling endpoint for the Live Dashboard's cross-device auto-refresh.
@@ -29,6 +30,22 @@ export async function GET(request: NextRequest) {
   const outletId = request.nextUrl.searchParams.get("outletId");
   if (!outletId) {
     return NextResponse.json({ error: "missing outletId" }, { status: 400 });
+  }
+
+  // Location gate: a dedicated store account may only poll its own outlet, so
+  // this endpoint can't be used to watch the other store's live state.
+  try {
+    if (!(await sessionCanUseOutlet(session, outletId))) {
+      return NextResponse.json(
+        { error: "forbidden" },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+  } catch {
+    return NextResponse.json(
+      { error: "signature_unavailable" },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   try {

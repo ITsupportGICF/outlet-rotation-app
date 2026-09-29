@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getSession, hasPortalAccess } from "@/lib/auth/session";
-import { listActiveOutlets } from "@/lib/graph/outlets";
+import { getOutletAccess } from "@/lib/auth/locations";
 import { getOutletDayView } from "@/lib/graph/day-view";
 import { statusStyle, freshnessLabel } from "@/lib/ui";
 import { formatTimeFriendly, formatClockTime } from "@/lib/time";
@@ -31,6 +31,33 @@ export default async function InputScreenPage({
   const params = await searchParams;
   const outletId = str(params.outletId);
 
+  // Location gate. A dedicated store account (Taft / Pine Hills) may only ever
+  // reach its own outlet — including by typing an ?outletId= for the other
+  // store. Every other user is unrestricted, exactly as before.
+  let access;
+  try {
+    access = await getOutletAccess(session);
+  } catch {
+    return (
+      <main className="relative min-h-screen">
+        <Ambient />
+        <AppHeader current="input" />
+        <div className="mx-auto max-w-4xl px-6 pb-14 sm:px-10">
+          <SetupNotice />
+        </div>
+      </main>
+    );
+  }
+
+  if (access.restricted) {
+    if (!access.soleOutletId) return <LocationUnavailable label={access.label} />;
+    // Send them to their own outlet, whether they arrived with no outlet at
+    // all or with someone else's.
+    if (outletId !== access.soleOutletId) {
+      redirect(`/input?outletId=${encodeURIComponent(access.soleOutletId)}`);
+    }
+  }
+
   return (
     <main className="relative min-h-screen">
       <Ambient />
@@ -40,21 +67,32 @@ export default async function InputScreenPage({
       </Suspense>
 
       <div className="mx-auto max-w-4xl px-6 pb-14 sm:px-10">
-        {!outletId ? <OutletPickerSection /> : <OutletInput outletId={outletId} />}
+        {!outletId ? (
+          <OutletPickerSection outlets={access.outlets} />
+        ) : (
+          <OutletInput outletId={outletId} />
+        )}
       </div>
     </main>
   );
 }
 
-async function OutletPickerSection() {
-  let outlets: { id: string; name: string }[] = [];
-  let setupError = false;
-  try {
-    outlets = await listActiveOutlets();
-  } catch {
-    setupError = true;
-  }
-  if (setupError) return <SetupNotice />;
+/** A store account whose outlet is missing or inactive in SharePoint. */
+function LocationUnavailable({ label }: { label: string | null }) {
+  return (
+    <main className="relative min-h-screen">
+      <Ambient />
+      <AppHeader current="input" />
+      <div className="mx-auto max-w-4xl px-6 pb-14 sm:px-10">
+        <SetupNotice
+          message={`This device is signed in as the ${label ?? "store"} account, but no active ${label ?? "store"} outlet is configured. Ask an admin to activate it in the Admin Center.`}
+        />
+      </div>
+    </main>
+  );
+}
+
+function OutletPickerSection({ outlets }: { outlets: { id: string; name: string }[] }) {
   return (
     <OutletPicker
       outlets={outlets}
@@ -144,7 +182,7 @@ async function OutletInput({ outletId }: { outletId: string }) {
                     {s.section.name}
                   </span>
                   <span className="chip" style={{ background: fresh.bg, color: fresh.text }}>
-                    {freshnessLabel(s.freshness)}
+                    {s.awaitingFirstRotation ? "Ready" : freshnessLabel(s.freshness)}
                   </span>
                 </div>
                 <p className="mb-4 text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>

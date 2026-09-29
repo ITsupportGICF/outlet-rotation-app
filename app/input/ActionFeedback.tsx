@@ -24,6 +24,8 @@ const RERROR: Record<string, string> = {
   no_active_sections: "No active sections are configured for this outlet.",
   no_mix: "That section has no commodity mix configured yet.",
   unknown_section: "That section isn't recognized for this outlet.",
+  wrong_location:
+    "This device is signed in to a different store and can't rotate at that outlet.",
   error: "Something went wrong. Please try again.",
 };
 

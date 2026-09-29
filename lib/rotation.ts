@@ -15,13 +15,16 @@
  *    MORE THAN ONCE, e.g. A=1,3 · B=2 · C=4  ->  A, B, A, C.
  *  - The sequence loops continuously through the day (…A, B, A, C, A, B, A, C…).
  *  - Where the store is in the sequence is derived from how many ADVANCING
- *    presses (Standard + Override, one step each) have happened today: the Nth
- *    press lands on sequence[N mod length]. A fresh day (0 presses) starts at
- *    the first slot. Nothing is stored — it's always recomputed.
+ *    presses (one step each) have happened today: the Nth press lands on
+ *    sequence[N mod length]. A fresh day (0 presses) starts at the first slot.
+ *    Nothing is stored — it's always recomputed.
  *  - Adding / removing / deactivating a section, or changing its positions,
  *    reshapes the sequence immediately (always derived from the CURRENT set).
- *  - Applies to every Standard/Override rotation - there is no bypass. (Manual
- *    adjustments are out-of-band and never advance the sequence.)
+ *  - EVERY press advances: Standard (Input Screen), Override (a deliberate
+ *    skip) and Manual (the Admin Center recording a rotation after the fact).
+ *    All three are order-enforced at their entry point, so the count-based
+ *    pointer below always matches what actually happened on the floor — there
+ *    is no bypass anywhere.
  */
 
 /** The minimal shape this module needs from a section. */
@@ -51,17 +54,17 @@ export function rotationSequence<T extends RotationSection>(
 }
 
 /**
- * Count ADVANCING presses today: distinct (section, timestamp) pairs among
- * Standard + Override rows. Manual rows are excluded, and because one Standard
- * press writes several commodity rows sharing a single timestamp, we de-dupe so
- * a press counts once.
+ * Count ADVANCING presses today: distinct (section, timestamp) pairs across
+ * ALL rotation rows — Standard, Override and Manual alike. Each is a real,
+ * order-enforced step through the sequence. Because one press writes several
+ * commodity rows sharing a single timestamp, we de-dupe so a press counts once.
  */
 export function advancingPressCount(
   rows: { sectionId: string; rotatedAt: string | null; rotationType: string }[],
 ): number {
   const seen = new Set<string>();
   for (const r of rows) {
-    if (r.rotationType === "Manual" || !r.rotatedAt) continue;
+    if (!r.rotatedAt) continue;
     seen.add(`${r.sectionId}@${r.rotatedAt}`);
   }
   return seen.size;

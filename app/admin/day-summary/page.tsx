@@ -127,7 +127,7 @@ function SummaryBody({ summary }: { summary: EndOfDaySummary }) {
           value={summary.goalsTotal > 0 ? `${summary.goalsMet}/${summary.goalsTotal}` : "—"}
         />
         <Stat label="Skipped" value={String(summary.overrides)} />
-        <Stat label="Manual" value={String(summary.manualRotations)} />
+        <Stat label="Of Which Manual" value={String(summary.manualRotations)} />
         <Stat label="Open Time" value={formatDuration(summary.durationMinutes)} />
       </section>
 

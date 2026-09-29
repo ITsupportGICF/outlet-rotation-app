@@ -50,6 +50,7 @@ import {
   startDayAction,
   endDayAction,
   manualRotationAction,
+  adminSignOutAction,
 } from "@/lib/actions/admin";
 import { formatDateTimeFriendly, parseTimeOfDay } from "@/lib/time";
 import Ambient from "@/app/_components/Ambient";
@@ -145,13 +146,38 @@ export default async function AdminCenterPage({
       <AppHeader current="admin" />
 
       <div className="mx-auto max-w-5xl px-6 pb-14 sm:px-10">
-        <div className="mb-6">
-          <p className="eyebrow-light">Outlet Rotation App</p>
-          <h1 className="page-title text-3xl font-bold">Admin Center</h1>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow-light">Outlet Rotation App</p>
+            <h1 className="page-title text-3xl font-bold">Admin Center</h1>
+          </div>
+          {admin && (
+            <form action={adminSignOutAction}>
+              <button type="submit" className="btn btn-outline btn-sm">
+                Sign out of Admin Center
+              </button>
+              <p
+                className="mt-1 text-right text-xs"
+                style={{ color: "rgba(226,235,245,0.50)" }}
+              >
+                Keeps you signed in to the app
+              </p>
+            </form>
+          )}
         </div>
 
         {!admin ? (
           <div className="glass glass-gold gloss relative mx-auto max-w-md overflow-hidden p-8">
+            {str(params.signedout) && (
+              <div
+                className="mb-5 rounded-xl px-4 py-3 text-sm"
+                style={{ background: "#eaf5ec", border: "1px solid #b9dcc3", color: "#1c7a44" }}
+              >
+                You&apos;ve signed out of the Admin Center. You&apos;re still
+                signed in to the app — sign in below to return to the Admin
+                Center.
+              </div>
+            )}
             {str(params.relogin) && (
               <div
                 className="mb-5 rounded-xl px-4 py-3 text-sm"
@@ -369,10 +395,13 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
   return (
     <Card title="Manual rotation">
       <p className="mb-4 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
-        A one-time manual adjustment: pick a section, enter the quantity for each
-        commodity, and record it. It&apos;s logged separately for that outlet,
-        section, and day, and does <strong>not</strong> change the store&apos;s
-        settings, goals, section order, or the normal rotation schedule.
+        Record a rotation that happened on the floor but wasn&apos;t entered on
+        the Input Screen. Enter the quantity for each commodity and record it.
+        It counts as a real rotation — the Live Dashboard updates the
+        section&apos;s status, the day&apos;s total, and goal progress — and it
+        stays marked <strong>Manual</strong> in the audit trail and end-of-day
+        report. Like the Input Screen, only the section that is{" "}
+        <strong>up next</strong> can be recorded.
       </p>
 
       {!openDay ? (
@@ -385,17 +414,23 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
         </p>
       ) : !selected ? (
         <div>
-          <p className="field-label">Select a section</p>
+          <p className="field-label">Select the section that&apos;s up next</p>
           <div className="flex flex-wrap gap-2">
-            {sections.map((s) => (
-              <Link
-                key={s.id}
-                href={`/admin?tab=rotation&outletId=${encodeURIComponent(outlet.id)}&sec=${encodeURIComponent(s.id)}`}
-                className="btn btn-outline btn-md"
-              >
-                {s.name}
-              </Link>
-            ))}
+            {sections.map((s) => {
+              const isNext = s.id === view.nextSectionId;
+              return (
+                <Link
+                  key={s.id}
+                  href={`/admin?tab=rotation&outletId=${encodeURIComponent(outlet.id)}&sec=${encodeURIComponent(s.id)}`}
+                  className={`btn btn-md ${isNext ? "btn-primary" : "btn-outline"}`}
+                  style={isNext ? undefined : { opacity: 0.55 }}
+                  aria-current={isNext ? "true" : undefined}
+                >
+                  {s.name}
+                  {isNext ? " · NEXT" : ""}
+                </Link>
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -411,6 +446,21 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
               Change section
             </Link>
           </div>
+
+          {view.nextSectionId && selected.id !== view.nextSectionId && (
+            <div
+              className="mb-4 rounded-xl px-4 py-3 text-sm"
+              style={{ background: "#fdf3d9", border: "1px solid #e8d08a", color: "#7a5c05" }}
+            >
+              {selected.name} isn&apos;t next in the rotation order —{" "}
+              <strong>
+                {sections.find((s) => s.id === view.nextSectionId)?.name ??
+                  "another section"}
+              </strong>{" "}
+              is. Recording this would be rejected. Pick the section that&apos;s
+              up next instead.
+            </div>
+          )}
 
           {commodities.length === 0 ? (
             <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No commodities configured.</p>

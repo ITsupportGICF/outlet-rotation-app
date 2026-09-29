@@ -18,7 +18,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getSession, hasPortalAccess } from "@/lib/auth/session";
-import { getAdminSession, setAdminSession } from "@/lib/auth/admin-session";
+import {
+  getAdminSession,
+  setAdminSession,
+  clearAdminSession,
+} from "@/lib/auth/admin-session";
 import { verifyAdminLogin } from "@/lib/graph/admin-users";
 import { getOutlet, createOutlet, updateOutlet } from "@/lib/graph/outlets";
 import {
@@ -28,7 +32,11 @@ import {
   listActiveSectionsForOutlet,
   listSectionsForOutlet,
 } from "@/lib/graph/sections";
-import { appendRotation } from "@/lib/graph/rotation-history";
+import {
+  appendRotation,
+  getRotationsForOperatingDay,
+} from "@/lib/graph/rotation-history";
+import { getNextSectionId, advancingPressCount } from "@/lib/rotation";
 import { setMixQuantity, setSectionMix, type MixLine } from "@/lib/graph/section-mix";
 import {
   setCommodityGoal,
@@ -98,6 +106,26 @@ function revalidateAll() {
   revalidatePath("/admin");
   revalidatePath("/input");
   revalidatePath("/dashboard");
+}
+
+// ---------------------------------------------------------------------------
+// Admin Center sign-out
+//
+// Ends ONLY the Admin Center elevation. The user's Microsoft 365 session — the
+// one that gets them into the app at all — is deliberately left untouched, so
+// they stay signed in to the Dashboard and Input Screen. Because the elevation
+// lives in its own cookie and getAdminSession() is the only thing that grants
+// Admin Center access, clearing it means the next visit to /admin shows the
+// username/password gate again. There is no "remember me" path that could let
+// the main M365 session re-open the Admin Center on its own.
+// ---------------------------------------------------------------------------
+
+export async function adminSignOutAction(): Promise<void> {
+  // Keep the main app session — we only drop the elevation.
+  await requirePortalSession();
+  await clearAdminSession();
+  revalidatePath("/admin");
+  redirect("/admin?signedout=1");
 }
 
 // ---------------------------------------------------------------------------
@@ -811,13 +839,19 @@ export async function endDayAction(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Manual rotation (Admin Center) — a one-time, out-of-band quantity
-// adjustment. Leadership picks a section and types a quantity per commodity.
-// It is recorded as RotationType=Manual for that outlet/section/day and is
-// deliberately NOT order-enforced. Manual rows are excluded from the
-// automated order pointer, goal progress, freshness, and totals (see
-// lib/graph/day-view.ts), so this never changes the store's settings, goals,
-// section order, or the normal rotation schedule.
+// Manual rotation (Admin Center) — leadership recording a rotation that
+// physically happened but wasn't entered on the Input Screen. They pick the
+// section that's up next and type the quantity per commodity.
+//
+// It is a REAL rotation: recorded as RotationType=Manual (so it stays
+// identifiable in the audit trail and the end-of-day report), and it counts
+// toward the section's freshness, the day's Total Rotations, and commodity
+// goal progress exactly like a Standard rotation — see lib/graph/day-view.ts.
+//
+// Because it advances the rotation cycle, it is ORDER-ENFORCED here with the
+// same rule the Input Screen uses. Without that check a manual entry for a
+// section that isn't up next would still push the pointer one slot forward,
+// silently skipping whichever section the store actually owed next.
 // ---------------------------------------------------------------------------
 
 function clampQuantity(raw: FormDataEntryValue | null): number {
@@ -847,6 +881,14 @@ export async function manualRotationAction(formData: FormData): Promise<void> {
     redirect(adminUrl(outletId, { rerror: "unknown_section", tab: "rotation" }));
   }
 
+  // Same order rule as the Input Screen — a manual entry advances the cycle,
+  // so it may only be recorded against the section that is currently up next.
+  const rotations = await getRotationsForOperatingDay(openDay.id);
+  const nextId = getNextSectionId(sections, advancingPressCount(rotations));
+  if (nextId && sectionId !== nextId) {
+    redirect(adminUrl(outletId, { rerror: "out_of_order", tab: "rotation" }));
+  }
+
   const items = commodities
     .map((c) => ({
       commodityId: c.id,
@@ -857,6 +899,18 @@ export async function manualRotationAction(formData: FormData): Promise<void> {
 
   if (items.length === 0) {
     redirect(adminUrl(outletId, { rerror: "no_quantities", tab: "rotation" }));
+  }
+
+  // Re-check immediately before writing: the reads above are the window in
+  // which a near-simultaneous press on the Input Screen could also have passed
+  // the check. This shrinks that window to near-zero.
+  const latestRotations = await getRotationsForOperatingDay(openDay.id);
+  const latestNextId = getNextSectionId(
+    sections,
+    advancingPressCount(latestRotations),
+  );
+  if (latestNextId && sectionId !== latestNextId) {
+    redirect(adminUrl(outletId, { rerror: "out_of_order", tab: "rotation" }));
   }
 
   await appendRotation({
