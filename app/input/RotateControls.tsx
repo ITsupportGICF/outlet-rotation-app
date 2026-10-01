@@ -72,8 +72,7 @@ export default function RotateControls({
           onClick={() => setConfirming(false)}
         >
           <div
-            className="glass glass-gold action-overlay-card"
-            style={{ maxWidth: "24rem" }}
+            className="glass glass-gold action-overlay-card dialog-card"
             onClick={(e) => e.stopPropagation()}
           >
             <span
@@ -91,7 +90,7 @@ export default function RotateControls({
               move to the next section. A notification is sent when a section is
               overridden.
             </p>
-            <div className="mt-1 flex w-full gap-3">
+            <div className="dialog-actions mt-1">
               <button
                 type="button"
                 onClick={() => setConfirming(false)}

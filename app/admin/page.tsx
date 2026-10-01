@@ -475,7 +475,10 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
                   </Field>
                 ))}
               </div>
-              <SubmitButton className="btn btn-primary btn-md" overlayLabel={`Recording ${selected.name}…`}>
+              <SubmitButton
+                className="btn btn-primary btn-md btn-wrap w-full sm:w-auto"
+                overlayLabel={`Recording ${selected.name}…`}
+              >
                 Rotate {selected.name}
               </SubmitButton>
               <p className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>

@@ -92,8 +92,8 @@ export default function UndoLastRotation({
 
   return (
     <Shell>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-semibold" style={{ color: "#ffffff" }}>
             Last rotation: {sectionName}
           </p>
@@ -107,7 +107,7 @@ export default function UndoLastRotation({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="btn btn-outline btn-md"
+          className="btn btn-outline btn-md w-full shrink-0 sm:w-auto"
         >
           ↩ Undo Last Rotation
         </button>
@@ -122,8 +122,7 @@ export default function UndoLastRotation({
           onClick={() => setConfirming(false)}
         >
           <div
-            className="glass glass-gold action-overlay-card"
-            style={{ maxWidth: "24rem" }}
+            className="glass glass-gold action-overlay-card dialog-card"
             onClick={(e) => e.stopPropagation()}
           >
             <span
@@ -142,7 +141,7 @@ export default function UndoLastRotation({
               go back to being the next section to rotate. A notification is sent
               when a rotation is undone.
             </p>
-            <div className="mt-1 flex w-full gap-3">
+            <div className="dialog-actions mt-1">
               <button
                 type="button"
                 onClick={() => setConfirming(false)}

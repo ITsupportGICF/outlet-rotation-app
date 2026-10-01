@@ -177,7 +177,7 @@ export default function ConnectionCheckModal() {
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="dialog-actions">
               <button
                 type="button"
                 onClick={() => void runCheck()}

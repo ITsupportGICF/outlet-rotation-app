@@ -193,11 +193,17 @@ async function OutletInput({ outletId }: { outletId: string }) {
                     : undefined,
                 }}
               >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-2xl font-semibold" style={{ color: "#ffffff" }}>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <span
+                    className="min-w-0 text-xl font-semibold sm:text-2xl"
+                    style={{ color: "#ffffff", overflowWrap: "anywhere" }}
+                  >
                     {s.section.name}
                   </span>
-                  <span className="chip" style={{ background: fresh.bg, color: fresh.text }}>
+                  <span
+                    className="chip shrink-0"
+                    style={{ background: fresh.bg, color: fresh.text }}
+                  >
                     {s.awaitingFirstRotation ? "Ready" : freshnessLabel(s.freshness)}
                   </span>
                 </div>
