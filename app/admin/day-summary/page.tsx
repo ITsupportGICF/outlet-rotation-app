@@ -121,7 +121,7 @@ function SummaryBody({ summary }: { summary: EndOfDaySummary }) {
       {/* Headline stats */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="Total Rotations" value={String(summary.totalRotations)} highlight />
-        <Stat label="Units Rotated" value={String(summary.totalUnits)} />
+        <Stat label="Tables Rotated" value={String(summary.totalUnits)} />
         <Stat
           label="Goals Met"
           value={summary.goalsTotal > 0 ? `${summary.goalsMet}/${summary.goalsTotal}` : "—"}
@@ -146,7 +146,7 @@ function SummaryBody({ summary }: { summary: EndOfDaySummary }) {
               <thead>
                 <tr style={{ color: "rgba(226,235,245,0.6)" }}>
                   <Th align="left">Commodity</Th>
-                  <Th>Units rotated</Th>
+                  <Th>Tables rotated</Th>
                   <Th>Rotations</Th>
                   <Th>Goal</Th>
                   <Th>Manual</Th>

@@ -324,7 +324,7 @@ export function buildEndOfDayEmailHtml(
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:8px;">
           <tr>
             ${statCell("Total Rotations", String(summary.totalRotations))}
-            ${statCell("Units Rotated", String(summary.totalUnits))}
+            ${statCell("Tables Rotated", String(summary.totalUnits))}
             ${statCell("Goals Met", goals)}
           </tr>
           <tr>
@@ -339,7 +339,7 @@ export function buildEndOfDayEmailHtml(
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6eef6;border-radius:10px;overflow:hidden;font-size:13px;">
           <tr style="background:#f4f9fd;color:#5b7994;">
             <td style="padding:8px 14px;">Commodity</td>
-            <td style="padding:8px 14px;text-align:center;">Units</td>
+            <td style="padding:8px 14px;text-align:center;">Tables</td>
             <td style="padding:8px 14px;text-align:center;">Rotations</td>
             <td style="padding:8px 14px;text-align:center;">Goal</td>
             <td style="padding:8px 14px;text-align:center;">Status</td>
