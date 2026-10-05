@@ -16,6 +16,7 @@
 import "server-only";
 
 import { acquireAppGraphToken } from "@/lib/auth/msal";
+import { maintenanceForcedOff } from "@/lib/env";
 import { getSharePointSiteId, type GraphListItem } from "@/lib/graph/client";
 
 const GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0";
@@ -27,12 +28,38 @@ type AppControlFields = {
   Killed?: boolean;
   Note?: string;
   UpdatedAt?: string;
+  /** Maintenance mode (separate from the kill switch). */
+  MaintenanceOn?: boolean;
+  /** Expected return, stored EXACTLY as typed: "YYYY-MM-DDTHH:MM" in ET. */
+  MaintenanceReturnAt?: string;
+  MaintenanceBy?: string;
+  MaintenanceByName?: string;
+  MaintenanceAt?: string;
+};
+
+export type MaintenanceState = {
+  on: boolean;
+  /** "YYYY-MM-DDTHH:MM" local wall-clock in the outlet time zone, or null. */
+  returnAt: string | null;
+  by: string | null;
+  byName: string | null;
+  at: string | null;
+};
+
+const MAINTENANCE_OFF: MaintenanceState = {
+  on: false,
+  returnAt: null,
+  by: null,
+  byName: null,
+  at: null,
 };
 
 export type KillState = {
   killed: boolean;
   note: string | null;
   updatedAt: string | null;
+  /** Maintenance mode travels on the same row and the same cache. */
+  maintenance: MaintenanceState;
 };
 
 /** Low-level app-only Graph call — no portal session, no kill-state guard. */
@@ -100,7 +127,12 @@ export async function readKillState(): Promise<KillState> {
     return stateCache.state;
   }
 
-  const live: KillState = { killed: false, note: null, updatedAt: null };
+  const live: KillState = {
+    killed: false,
+    note: null,
+    updatedAt: null,
+    maintenance: MAINTENANCE_OFF,
+  };
 
   if (process.env.NEXT_PHASE === "phase-production-build") {
     return live;
@@ -113,6 +145,13 @@ export async function readKillState(): Promise<KillState> {
           killed: row.fields.Killed === true,
           note: row.fields.Note ?? null,
           updatedAt: row.fields.UpdatedAt ?? null,
+          maintenance: {
+            on: row.fields.MaintenanceOn === true,
+            returnAt: row.fields.MaintenanceReturnAt ?? null,
+            by: row.fields.MaintenanceBy ?? null,
+            byName: row.fields.MaintenanceByName ?? null,
+            at: row.fields.MaintenanceAt ?? null,
+          },
         }
       : live;
     stateCache = { at: now, state };
@@ -159,6 +198,91 @@ export async function setKillState(killed: boolean, note: string): Promise<void>
   // Reflect the change immediately instead of waiting for the cache to expire.
   stateCache = {
     at: Date.now(),
-    state: { killed, note: fields.Note ?? null, updatedAt: fields.UpdatedAt ?? null },
+    state: {
+      killed,
+      note: fields.Note ?? null,
+      updatedAt: fields.UpdatedAt ?? null,
+      maintenance: row
+        ? {
+            on: row.fields.MaintenanceOn === true,
+            returnAt: row.fields.MaintenanceReturnAt ?? null,
+            by: row.fields.MaintenanceBy ?? null,
+            byName: row.fields.MaintenanceByName ?? null,
+            at: row.fields.MaintenanceAt ?? null,
+          }
+        : MAINTENANCE_OFF,
+    },
+  };
+}
+
+/**
+ * Current maintenance state.
+ *
+ * Reads through the same briefly-cached, FAIL-OPEN path as the kill switch:
+ * if the row can't be read for any reason the answer is "maintenance is off",
+ * so a SharePoint hiccup can never lock everyone out. The emergency
+ * MAINTENANCE_FORCE_OFF override short-circuits before any read happens.
+ */
+export async function readMaintenanceState(): Promise<MaintenanceState> {
+  if (maintenanceForcedOff) return MAINTENANCE_OFF;
+  try {
+    return (await readKillState()).maintenance;
+  } catch {
+    return MAINTENANCE_OFF;
+  }
+}
+
+/**
+ * Turn maintenance on/off, or update the expected return time. Creates the
+ * single AppControl row if it doesn't exist yet, and never touches the kill
+ * switch's own fields.
+ */
+export async function setMaintenanceState(input: {
+  on: boolean;
+  returnAt: string | null;
+  by: string;
+  byName: string;
+}): Promise<void> {
+  const siteId = getSharePointSiteId();
+  const listId = await appControlListId();
+  const row = await readRow();
+
+  const maintenance: MaintenanceState = {
+    on: input.on,
+    returnAt: input.returnAt,
+    by: input.by.slice(0, 255),
+    byName: input.byName.slice(0, 255),
+    at: new Date().toISOString(),
+  };
+
+  const fields: AppControlFields = {
+    MaintenanceOn: maintenance.on,
+    MaintenanceReturnAt: maintenance.returnAt ?? "",
+    MaintenanceBy: maintenance.by ?? "",
+    MaintenanceByName: maintenance.byName ?? "",
+    MaintenanceAt: maintenance.at ?? "",
+  };
+
+  if (row) {
+    await appGraph(`/sites/${siteId}/lists/${listId}/items/${row.id}/fields`, {
+      method: "PATCH",
+      body: JSON.stringify(fields),
+    });
+  } else {
+    await appGraph(`/sites/${siteId}/lists/${listId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ fields: { Title: "app-control", Killed: false, ...fields } }),
+    });
+  }
+
+  // Bust the cache so the new state is visible on the very next request.
+  stateCache = {
+    at: Date.now(),
+    state: {
+      killed: row?.fields.Killed === true,
+      note: row?.fields.Note ?? null,
+      updatedAt: row?.fields.UpdatedAt ?? null,
+      maintenance,
+    },
   };
 }

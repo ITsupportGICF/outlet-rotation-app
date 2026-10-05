@@ -24,6 +24,7 @@ import {
   clearAdminSession,
 } from "@/lib/auth/admin-session";
 import { verifyAdminLogin } from "@/lib/graph/admin-users";
+import { allowDuringMaintenance } from "@/lib/graph/client";
 import { getOutlet, createOutlet, updateOutlet } from "@/lib/graph/outlets";
 import {
   createSection,
@@ -153,9 +154,11 @@ export async function adminLoginAction(
     return { error: "Enter a username and password." };
   }
 
-  const result = await verifyAdminLogin(
-    parsed.data.username,
-    parsed.data.password,
+  // The password check reads AdminUsers, which maintenance mode would
+  // otherwise block — and IT must always be able to sign in to turn
+  // maintenance off. Narrow, request-scoped carve-out.
+  const result = await allowDuringMaintenance(() =>
+    verifyAdminLogin(parsed.data.username, parsed.data.password),
   );
 
   if (!result.ok) {

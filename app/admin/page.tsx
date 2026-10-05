@@ -15,6 +15,9 @@ import { getDayGoals } from "@/lib/graph/operating-day-goals";
 import { getNotificationSettings } from "@/lib/graph/notifications";
 import { rotationSequence } from "@/lib/rotation";
 import { getCurrentAdminUser } from "@/lib/auth/current-admin";
+import { readMaintenanceState } from "@/lib/graph/app-control";
+import { formatReturnAt } from "@/lib/maintenance-message";
+import MaintenanceControls from "./MaintenanceControls";
 import { listAdminUsers, type AdminUserRecord } from "@/lib/graph/admin-users";
 import {
   assignableLevels,
@@ -113,6 +116,7 @@ const TABS = [
   { key: "locations", label: "Locations" },
   { key: "users", label: "Users" },
   { key: "notifications", label: "Notifications" },
+  { key: "maintenance", label: "Maintenance" },
 ] as const;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -308,6 +312,8 @@ async function AdminWorkspace({
         <NotificationsTab />
       ) : tab === "users" ? (
         <UsersTab />
+      ) : tab === "maintenance" ? (
+        <MaintenanceTab />
       ) : !selected ? (
         <Card title="Select an outlet">
           <p className="text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
@@ -1069,4 +1075,56 @@ function toTimeInputValue(raw: string | null): string {
   const t = parseTimeOfDay(raw);
   if (!t) return "";
   return `${String(t.hours).padStart(2, "0")}:${String(t.minutes).padStart(2, "0")}`;
+}
+
+
+/**
+ * Maintenance mode — IT only.
+ *
+ * The tab itself refuses to render its controls for anyone below IT, and the
+ * server actions behind it re-check the level independently, so hiding the UI
+ * is a convenience rather than the protection.
+ */
+async function MaintenanceTab() {
+  const actor = await getCurrentAdminUser();
+
+  if (!actor || actor.permissionLevel !== "IT") {
+    return (
+      <Card title="Maintenance mode">
+        <p className="text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+          Only IT can view or change maintenance mode.
+        </p>
+      </Card>
+    );
+  }
+
+  let state;
+  try {
+    state = await readMaintenanceState();
+  } catch {
+    return (
+      <Card title="Maintenance mode">
+        <p className="text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+          Couldn&apos;t read the current setting. Check that the AppControl list
+          has the maintenance columns.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Maintenance mode">
+      <p className="mb-5 text-sm" style={{ color: "rgba(226,235,245,0.72)" }}>
+        Closes the app to everyone except IT and shows them when it will be
+        back. IT keeps full access throughout, so you can keep working while
+        it&apos;s on.
+      </p>
+      <MaintenanceControls
+        isOn={state.on}
+        returnAtValue={state.returnAt ?? ""}
+        returnAtLabel={formatReturnAt(state.returnAt)}
+        updatedByName={state.byName}
+      />
+    </Card>
+  );
 }

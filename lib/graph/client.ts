@@ -21,6 +21,8 @@
  */
 import "server-only";
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { getSession, hasPortalAccess } from "@/lib/auth/session";
 import { acquireAppGraphToken } from "@/lib/auth/msal";
 import { env } from "@/lib/env";
@@ -86,6 +88,21 @@ export function getSharePointSiteId(): string {
  * Authorization (session + portal access) is enforced before any token is
  * acquired or any network call is made.
  */
+/**
+ * Request-scoped carve-out for maintenance mode.
+ *
+ * Maintenance blocks every data call, but two reads MUST still work while it
+ * is on, or IT could never switch it back off: the Admin Center password
+ * check, and the AdminUsers lookup that proves someone is IT. Those callers
+ * wrap themselves in this helper. It is deliberately narrow and request-
+ * scoped (AsyncLocalStorage), so it can never leak into another request.
+ */
+const maintenanceBypass = new AsyncLocalStorage<true>();
+
+export function allowDuringMaintenance<T>(fn: () => Promise<T>): Promise<T> {
+  return maintenanceBypass.run(true, fn);
+}
+
 export async function graphRequest<T>(
   path: string,
   options: RequestInit = {},
@@ -96,6 +113,22 @@ export async function graphRequest<T>(
   const { isAppKilled } = await import("@/lib/graph/app-control");
   if (await isAppKilled()) {
     throw new GraphApiError("Application is disabled.", 503, "app_disabled");
+  }
+
+  // 0b. Maintenance mode: everyone except IT is blocked, here at the single
+  // point every page, server action and API route reaches data through — so a
+  // typed URL, a client-side navigation and a hand-crafted request are all
+  // refused identically. Skipped for the carve-out above (and cheap: the
+  // state is cached for 15s and fails open).
+  if (!maintenanceBypass.getStore()) {
+    const { isMaintenanceBlocked } = await import("@/lib/auth/maintenance");
+    if (await isMaintenanceBlocked()) {
+      throw new GraphApiError(
+        "The app is currently in maintenance mode.",
+        503,
+        "maintenance",
+      );
+    }
   }
 
   // 1. Must be signed in.

@@ -52,6 +52,12 @@ const envSchema = z.object({
   // lib/security/kill-code.ts). Optional: when unset the kill switch is inert
   // (no code will ever verify), so the app still boots without it.
   KILL_SWITCH_SECRET: z.string().optional(),
+
+  // --- Maintenance mode emergency override ---
+  // Set to "true" to ignore the stored maintenance setting entirely and keep
+  // the app open for everyone. The lever of last resort for the case where
+  // maintenance mode cannot be switched off from inside the app itself.
+  MAINTENANCE_FORCE_OFF: z.string().optional(),
 });
 
 function loadEnv() {
@@ -93,6 +99,13 @@ export const isAuthConfigured =
 
 /** Whether the SharePoint data layer has enough config to make calls. */
 export const isSharePointConfigured = Boolean(env.SHAREPOINT_SITE_ID);
+
+/**
+ * Emergency override: when MAINTENANCE_FORCE_OFF is "true", maintenance mode
+ * is treated as OFF no matter what the stored setting says.
+ */
+export const maintenanceForcedOff =
+  (env.MAINTENANCE_FORCE_OFF ?? "").trim().toLowerCase() === "true";
 
 /** "id1,id2" -> ["id1","id2"]. Empty array until configured. */
 export const allowedGroupIds: string[] =
