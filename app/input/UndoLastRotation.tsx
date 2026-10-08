@@ -19,13 +19,27 @@ import SubmitButton from "@/app/_components/SubmitButton";
 
 const DISARM_AFTER_MS = 5000;
 
-/** Current time, ticking once a second. 0 until mounted. */
-function useNow(): number {
-  const subscribe = useCallback((onChange: () => void) => {
-    const timer = window.setInterval(onChange, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  return useSyncExternalStore(subscribe, () => Date.now(), () => 0);
+/**
+ * true once `expiresAtMs` has passed. The snapshot is a plain boolean, so it
+ * is stable between reads (no infinite-loop warning) and only changes once,
+ * at the moment the window closes. Server render: false.
+ */
+function useExpired(expiresAtMs: number, enabled: boolean): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (!enabled) return () => {};
+      const ms = expiresAtMs - Date.now();
+      if (ms <= 0) return () => {};
+      const timer = window.setTimeout(onChange, ms + 50);
+      return () => window.clearTimeout(timer);
+    },
+    [expiresAtMs, enabled],
+  );
+  const getSnapshot = useCallback(
+    () => enabled && Date.now() >= expiresAtMs,
+    [expiresAtMs, enabled],
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
 export default function UndoLastRotation({
@@ -42,7 +56,7 @@ export default function UndoLastRotation({
   unlimited?: boolean;
 }) {
   const [armed, setArmed] = useState(false);
-  const now = useNow();
+  const expired = useExpired(expiresAtMs, !unlimited);
 
   // Auto-disarm. State is only set from the timer callback, never synchronously.
   useEffect(() => {
@@ -51,7 +65,7 @@ export default function UndoLastRotation({
     return () => window.clearTimeout(timer);
   }, [armed]);
 
-  if (!unlimited && now !== 0 && now >= expiresAtMs) return null;
+  if (expired) return null;
 
   if (armed) {
     return (

@@ -23,6 +23,7 @@ import { getCurrentAdminUser } from "@/lib/auth/current-admin";
 import { readMaintenanceState, setMaintenanceState } from "@/lib/graph/app-control";
 import { parseReturnAt, formatReturnAt } from "@/lib/maintenance-message";
 import { appendConfigChange } from "@/lib/graph/config-change-log";
+import { allowDuringMaintenance } from "@/lib/graph/client";
 
 export type MaintenanceResult = { ok: boolean; message: string };
 
@@ -57,7 +58,12 @@ async function requireIT(): Promise<
     return { ok: false, message: "Please sign in again." };
   }
 
-  const actor = await getCurrentAdminUser();
+  let actor: Awaited<ReturnType<typeof getCurrentAdminUser>>;
+  try {
+    actor = await allowDuringMaintenance(() => getCurrentAdminUser());
+  } catch {
+    return { ok: false, message: "Couldn't confirm your account right now. Please try again." };
+  }
   if (!actor) {
     return { ok: false, message: "Your Admin Center session has expired. Sign in again." };
   }
@@ -144,7 +150,9 @@ export async function startMaintenanceAction(
 
 /** Turn maintenance OFF. */
 export async function endMaintenanceAction(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _prev: MaintenanceResult,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _formData: FormData,
 ): Promise<MaintenanceResult> {
   const actor = await requireIT();

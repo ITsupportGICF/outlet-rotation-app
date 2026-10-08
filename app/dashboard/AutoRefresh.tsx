@@ -33,12 +33,24 @@ export default function AutoRefresh({
 
   useEffect(() => {
     let active = true;
+    // Never stack checks: if the server is slow, skip ticks until the
+    // current one finishes (or times out) instead of piling up requests.
+    let inFlight = false;
 
     async function checkSignature() {
+      if (inFlight) return;
+      inFlight = true;
       try {
         const res = await fetch(
           `/api/rotation-signature?outletId=${encodeURIComponent(outletId)}`,
-          { cache: "no-store" },
+          {
+            cache: "no-store",
+            // Older TV browsers lack AbortSignal.timeout; just skip the limit there.
+            signal:
+              typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+                ? AbortSignal.timeout(7000)
+                : undefined,
+          },
         );
         if (!res.ok || !active) return;
         const data = (await res.json()) as { sig?: string };
@@ -51,7 +63,9 @@ export default function AutoRefresh({
           router.refresh();
         }
       } catch {
-        /* transient network error — try again next tick */
+        /* transient network error or timeout — try again next tick */
+      } finally {
+        inFlight = false;
       }
     }
 

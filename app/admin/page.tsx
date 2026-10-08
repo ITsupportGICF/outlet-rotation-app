@@ -59,6 +59,7 @@ import { formatDateTimeFriendly, parseTimeOfDay } from "@/lib/time";
 import Ambient from "@/app/_components/Ambient";
 import AppHeader from "@/app/_components/AppHeader";
 import SubmitButton from "@/app/_components/SubmitButton";
+import ConfirmSubmitButton from "@/app/_components/ConfirmSubmitButton";
 
 import AdminLoginForm from "./AdminLoginForm";
 
@@ -597,7 +598,7 @@ async function SectionsTab({ outlet }: { outlet: Outlet }) {
                   </SubmitButton>
                 </form>
                 <form action={deleteSectionAction.bind(null, outlet.id, s.id)}>
-                  <SubmitButton className="btn btn-ghost btn-sm" style={{ color: "#c23b3b" }} overlayLabel="Removing section…">Remove</SubmitButton>
+                  <ConfirmSubmitButton confirmLabel="Confirm remove" style={{ color: "#c23b3b" }} overlayLabel="Removing section…">Remove</ConfirmSubmitButton>
                 </form>
               </div>
             </div>
@@ -968,7 +969,7 @@ function UserRow({ actor, user }: { actor: AdminUserRecord; user: AdminUserRecor
           )}
           {canDelete && (
             <form action={deleteUserAction.bind(null, user.itemId)}>
-              <SubmitButton className="btn btn-ghost btn-sm" style={{ color: "#c23b3b" }} overlayLabel="Deleting…">Delete</SubmitButton>
+              <ConfirmSubmitButton confirmLabel="Confirm delete" style={{ color: "#c23b3b" }} overlayLabel="Deleting…">Delete</ConfirmSubmitButton>
             </form>
           )}
         </div>

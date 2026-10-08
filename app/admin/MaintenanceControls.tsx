@@ -53,11 +53,13 @@ export default function MaintenanceControls({
 }) {
   const [startState, startAction] = useActionState(startMaintenanceAction, EMPTY);
   const [endState, endAction] = useActionState(endMaintenanceAction, EMPTY);
+  // Show the result of whichever form was submitted LAST (not always "start").
+  const [last, setLast] = useState<"start" | "end">("start");
   const [confirming, setConfirming] = useState<"on" | "off" | null>(null);
 
   return (
     <div>
-      <Result state={startState.message ? startState : endState} />
+      <Result state={last === "end" ? endState : startState} />
 
       <div
         className="mb-5 rounded-xl px-4 py-3 text-sm"
@@ -82,7 +84,7 @@ export default function MaintenanceControls({
       </div>
 
       {/* Turn on, or update the time while already on */}
-      <form action={startAction} className="space-y-4">
+      <form action={startAction} onSubmit={() => setLast("start")} className="space-y-4">
         <div>
           <label htmlFor="returnAt" className="field-label">
             Expected back online (Eastern)
@@ -143,7 +145,7 @@ export default function MaintenanceControls({
 
       {/* Turn off */}
       {isOn && (
-        <form action={endAction} className="mt-6 border-t pt-5" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
+        <form action={endAction} onSubmit={() => setLast("end")} className="mt-6 border-t pt-5" style={{ borderColor: "rgba(255,255,255,0.10)" }}>
           {confirming === "off" ? (
             <div className="dialog-actions">
               <button

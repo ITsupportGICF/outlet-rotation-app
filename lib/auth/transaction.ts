@@ -73,6 +73,16 @@ export function safeReturnTo(value: string | null | undefined): string {
   if (!value.startsWith("/")) return "/";
   if (value.startsWith("//")) return "/";
   if (value.includes("\\")) return "/";
+  // Browsers strip tab/CR/LF while parsing a URL, so "/<TAB>/evil.com" would
+  // become "//evil.com" (another site). Refuse any control character.
+  if (/[\x00-\x1f\x7f]/.test(value)) return "/";
+  // Final check: it must resolve to THIS app, never another origin.
+  try {
+    const base = "https://app.invalid";
+    if (new URL(value, base).origin !== base) return "/";
+  } catch {
+    return "/";
+  }
   return value;
 }
 

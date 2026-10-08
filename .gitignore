@@ -10,3 +10,7 @@ EntraMSkEYS.txt
 
 # Local project artifacts
 *.tgz
+*.tsbuildinfo
+
+# Kill-switch enrolment QR: it contains the kill-switch secret. Never commit.
+Claude outputs/kill-switch-qr.png

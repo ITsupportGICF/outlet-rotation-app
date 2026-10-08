@@ -25,8 +25,17 @@ export default function MaintenanceScreen({
       const res = await fetch("/api/maintenance-status", { cache: "no-store" });
       if (!res.ok) return;
       const data = (await res.json()) as { blocked?: boolean };
-      // As soon as we're no longer blocked, drop straight back into the app.
-      if (data.blocked === false) window.location.replace("/home");
+      // As soon as we're no longer blocked, drop straight back into the app —
+      // onto the SAME page the device was showing (a store TV goes back to
+      // its dashboard, not Home). Only the dedicated /maintenance route sends
+      // people to Home.
+      if (data.blocked === false) {
+        if (window.location.pathname.startsWith("/maintenance")) {
+          window.location.replace("/home");
+        } else {
+          window.location.reload();
+        }
+      }
     } catch {
       /* offline or transient — try again on the next tick */
     }

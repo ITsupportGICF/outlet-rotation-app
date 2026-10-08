@@ -11,6 +11,7 @@ import Ambient from "@/app/_components/Ambient";
 import BackButton from "@/app/_components/BackButton";
 import OutletPicker from "@/app/_components/OutletPicker";
 import AutoRefresh from "./AutoRefresh";
+import AutoRetry from "./AutoRetry";
 
 /**
  * Live Dashboard — full-screen TV layout (no app header). Sections first, each
@@ -33,12 +34,17 @@ export default async function LiveDashboardPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const session = await getSession();
-  if (!session) redirect("/auth/signin");
-  if (!hasPortalAccess(session)) redirect("/?error=access_denied");
-
   const params = await searchParams;
   const outletId = str(params.outletId);
+
+  const session = await getSession();
+  if (!session) {
+    // Come straight back to THIS dashboard after signing in. Without it the
+    // TV landed on Home every time its session expired.
+    const here = outletId ? `/dashboard?outletId=${encodeURIComponent(outletId)}` : "/dashboard";
+    redirect(`/auth/signin?returnTo=${encodeURIComponent(here)}`);
+  }
+  if (!hasPortalAccess(session)) redirect("/?error=access_denied");
 
   // Location gate. A dedicated store account (Taft / Pine Hills) may only ever
   // display its own outlet, including when an ?outletId= for the other store
@@ -55,7 +61,7 @@ export default async function LiveDashboardPage({
   // setup notice rather than rendering an outlet we haven't authorized.
   if (accessError || !access) {
     return (
-      <DashboardNotice>
+      <DashboardNotice autoRetry>
         SharePoint isn&apos;t connected yet. Once configured, the dashboard will
         appear here.
       </DashboardNotice>
@@ -102,9 +108,16 @@ export default async function LiveDashboardPage({
   return <OutletDashboard outletId={outletId} />;
 }
 
-function DashboardNotice({ children }: { children: React.ReactNode }) {
+function DashboardNotice({
+  children,
+  autoRetry = false,
+}: {
+  children: React.ReactNode;
+  autoRetry?: boolean;
+}) {
   return (
     <main className="relative min-h-screen px-6 py-10">
+      {autoRetry && <AutoRetry />}
       <Ambient />
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-center justify-between">
@@ -401,12 +414,15 @@ async function OutletDashboard({ outletId }: { outletId: string }) {
   try {
     view = await getOutletDayView(outletId);
   } catch {
+    // Usually a brief SharePoint hiccup. Keep refreshing so the TV recovers
+    // by itself as soon as data is reachable again.
     return (
       <main className="tv-dash relative flex min-h-screen items-center justify-center p-8">
         <style>{TV_CSS}</style>
+        <AutoRefresh outletId={outletId} />
         <p className="tv-notice p-8 text-center text-xl">
-          SharePoint isn&apos;t connected yet. Live data will appear here once
-          it&apos;s configured.
+          Live data is temporarily unavailable. This screen will refresh
+          automatically.
         </p>
       </main>
     );

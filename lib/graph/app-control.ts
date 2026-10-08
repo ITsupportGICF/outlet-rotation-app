@@ -75,6 +75,9 @@ async function appGraph<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers,
     cache: "no-store",
+    // Never let a stalled call hang every request behind the kill/maintenance
+    // check. Callers already fail open when this throws.
+    signal: init.signal ?? AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
     throw new Error(`AppControl Graph call failed with status ${res.status}`);

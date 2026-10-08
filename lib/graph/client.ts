@@ -153,7 +153,7 @@ export async function graphRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     ...options,
     headers,
     cache: "no-store",
@@ -253,7 +253,100 @@ export const NON_INDEXED_QUERY_HEADER = {
  */
 export function graphUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
+    // Only Graph's own @odata.nextLink URLs arrive here. Never send the app
+    // token anywhere else.
+    if (!path.startsWith(`${GRAPH_BASE_URL}/`)) {
+      throw new GraphApiError("Refused a non-Graph URL.", 400, "invalid_path");
+    }
+    assertSafeGraphPath(path.slice(GRAPH_BASE_URL.length));
     return path;
   }
-  return `${GRAPH_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const rel = path.startsWith("/") ? path : `/${path}`;
+  assertSafeGraphPath(rel);
+  return `${GRAPH_BASE_URL}${rel}`;
+}
+
+/**
+ * Defence in depth for every Graph call, whatever built the path.
+ *
+ * Item ids are interpolated into URL paths in many places. A crafted id such
+ * as "1/../../AdminUsers/items/7" would otherwise be normalised by fetch into
+ * a request against a DIFFERENT list. So, in the path part only (never the
+ * query string):
+ *  - no "." / ".." segments, backslashes, control characters, or
+ *    percent-encoded dots/slashes/backslashes;
+ *  - the segment after "items" must be a plain numeric SharePoint item id.
+ * Every legitimate path the app builds already satisfies this.
+ */
+function assertSafeGraphPath(pathAndQuery: string): void {
+  const path = pathAndQuery.split("?")[0];
+  const bad = () => {
+    throw new GraphApiError("Invalid request path.", 400, "invalid_path");
+  };
+  if (/[\x00-\x1f\x7f\\]/.test(path)) bad();
+  if (/%(2e|2f|5c|00)/i.test(path)) bad();
+  const segments = path.split("/");
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (seg === "." || seg === "..") bad();
+    if (seg === "items" && i + 1 < segments.length && !/^\d+$/.test(segments[i + 1])) {
+      bad();
+    }
+  }
+}
+
+/** Per-attempt time limit, so a stalled Graph call can't hang a request. */
+const GRAPH_TIMEOUT_MS = 25_000;
+const MAX_RETRIES = 2;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function retryDelayMs(response: Response | null, attempt: number): number {
+  const header = response?.headers.get("Retry-After");
+  const seconds = header ? Number(header) : NaN;
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 5_000);
+  return 1_000 * 2 ** attempt; // 1s, 2s
+}
+
+/**
+ * fetch with a timeout and a small, safe retry policy for Graph throttling:
+ *  - 429 (throttled): retried for ANY method. Graph did not run the request,
+ *    so a retried write can't be applied twice.
+ *  - 503 / 504, timeouts and network errors: retried for GET only. A write
+ *    might have been applied, so it is never repeated.
+ * At most 2 retries, waiting Retry-After (capped at 5s) or 1s/2s.
+ */
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const isRead = method === "GET";
+
+  for (let attempt = 0; ; attempt++) {
+    let response: Response | null = null;
+    try {
+      response = await fetch(url, {
+        ...init,
+        signal: init.signal ?? AbortSignal.timeout(GRAPH_TIMEOUT_MS),
+      });
+    } catch (err) {
+      if (isRead && attempt < MAX_RETRIES) {
+        await sleep(retryDelayMs(null, attempt));
+        continue;
+      }
+      const timedOut = err instanceof Error && err.name === "TimeoutError";
+      throw new GraphApiError(
+        timedOut
+          ? "Microsoft Graph did not respond in time."
+          : "Could not reach Microsoft Graph.",
+        504,
+        timedOut ? "timeout" : "network_error",
+      );
+    }
+
+    const retryable =
+      response.status === 429 ||
+      (isRead && (response.status === 503 || response.status === 504));
+    if (!retryable || attempt >= MAX_RETRIES) return response;
+
+    await sleep(retryDelayMs(response, attempt));
+  }
 }

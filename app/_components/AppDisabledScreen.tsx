@@ -7,6 +7,7 @@
  * from this screen without a Microsoft sign-in.
  */
 import KillSwitchPanel from "@/app/_components/KillSwitchPanel";
+import ReviveWatcher from "@/app/_components/ReviveWatcher";
 
 export default function AppDisabledScreen() {
   return (
@@ -23,6 +24,7 @@ export default function AppDisabledScreen() {
       }}
     >
       <KillSwitchPanel />
+      <ReviveWatcher />
       <div style={{ maxWidth: 420 }}>
         <div
           aria-hidden="true"

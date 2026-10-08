@@ -108,9 +108,11 @@ export async function GET(request: NextRequest) {
       groups,
     });
 
-    const response = NextResponse.redirect(
-      new URL(transaction.returnTo, env.AUTH_URL),
-    );
+    // Belt and braces: only ever redirect back into this app.
+    const appOrigin = new URL(env.AUTH_URL).origin;
+    let target = new URL(transaction.returnTo, env.AUTH_URL);
+    if (target.origin !== appOrigin) target = new URL("/", env.AUTH_URL);
+    const response = NextResponse.redirect(target);
     clearTransactionOn(response);
     return response;
   } catch (err) {

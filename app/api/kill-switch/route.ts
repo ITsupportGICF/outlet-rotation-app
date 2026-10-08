@@ -29,6 +29,12 @@ let global: Bucket = { count: 0, resetAt: Date.now() + WINDOW_MS };
 
 function bucket(map: Map<string, Bucket>, key: string): Bucket {
   const now = Date.now();
+  // Memory guard: drop expired entries once the table gets large, so a flood
+  // of requests with varying addresses can never grow it without bound.
+  if (map.size > 1000) {
+    for (const [k, b] of map) if (now > b.resetAt) map.delete(k);
+    if (map.size > 5000) map.clear(); // the global cap still applies
+  }
   const existing = map.get(key);
   if (!existing || now > existing.resetAt) {
     const fresh = { count: 0, resetAt: now + WINDOW_MS };
@@ -46,9 +52,14 @@ function globalBucket(): Bucket {
 }
 
 function clientIp(request: NextRequest): string {
+  // Azure's front end APPENDS the real client address to X-Forwarded-For, so
+  // the right-most entry is the trustworthy one; anything to its left was
+  // supplied by the caller. Strip any ":port".
   const fwd = request.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]!.trim();
-  return request.headers.get("x-client-ip") ?? "unknown";
+  const last = fwd?.split(",").pop()?.trim();
+  const raw = last || request.headers.get("x-client-ip") || "unknown";
+  if (raw.startsWith("[")) return raw.slice(1, raw.indexOf("]") > 0 ? raw.indexOf("]") : undefined);
+  return /^\d+\.\d+\.\d+\.\d+:\d+$/.test(raw) ? raw.slice(0, raw.lastIndexOf(":")) : raw;
 }
 
 function tooMany(): NextResponse {
@@ -77,6 +88,12 @@ export async function POST(request: NextRequest) {
     return tooMany();
   }
 
+  // Count the attempt NOW, before any await. Counting only after a failed
+  // check let a burst of parallel requests all pass the limit above before
+  // any of them was recorded. A correct code gives the attempt back below.
+  ipBucket.count += 1;
+  gBucket.count += 1;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -101,9 +118,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!verifyKillCode(code)) {
-    ipBucket.count += 1;
-    gBucket.count += 1;
-    // Never log the code or the secret — only that an attempt failed.
+    // (Already counted above.) Never log the code or the secret — only that an attempt failed.
     console.warn("[kill-switch] invalid code", {
       ip,
       action,
@@ -117,6 +132,7 @@ export async function POST(request: NextRequest) {
 
   // Success — reset this IP's failure counter and apply the state.
   perIp.delete(ip);
+  gBucket.count = Math.max(0, gBucket.count - 1);
   const killed = action === "kill";
   await setKillState(killed, `${killed ? "Killed" : "Revived"} via kill switch`);
   console.warn("[kill-switch] state changed", { ip, killed });

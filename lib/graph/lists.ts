@@ -46,6 +46,10 @@ export type ListKey = keyof typeof LIST;
 type ListSummary = { id: string; displayName: string; name: string };
 
 let cache: Map<string, string> | null = null;
+let loadedAt = 0;
+
+/** A list created after start-up is picked up on the next miss, at most once a minute. */
+const MISS_REFRESH_MS = 60_000;
 
 async function loadListMap(): Promise<Map<string, string>> {
   if (cache) return cache;
@@ -64,14 +68,24 @@ async function loadListMap(): Promise<Map<string, string>> {
   }
 
   cache = map;
+  loadedAt = Date.now();
   return map;
 }
 
 /** Resolve one of the app's known lists to its SharePoint list id. */
 export async function resolveListId(key: ListKey): Promise<string> {
   const displayName = LIST[key];
-  const map = await loadListMap();
-  const id = map.get(displayName.toLowerCase());
+  let map = await loadListMap();
+  let id = map.get(displayName.toLowerCase());
+
+  // Not found: the list may have been created after this server started.
+  // Reload the map once (rate-limited) before giving up, instead of needing
+  // an app restart.
+  if (!id && Date.now() - loadedAt > MISS_REFRESH_MS) {
+    cache = null;
+    map = await loadListMap();
+    id = map.get(displayName.toLowerCase());
+  }
 
   if (!id) {
     throw new GraphApiError(

@@ -23,6 +23,7 @@ import {
   setAdminSession,
   clearAdminSession,
 } from "@/lib/auth/admin-session";
+import { getCurrentAdminUser } from "@/lib/auth/current-admin";
 import { verifyAdminLogin } from "@/lib/graph/admin-users";
 import { allowDuringMaintenance } from "@/lib/graph/client";
 import { getOutlet, createOutlet, updateOutlet } from "@/lib/graph/outlets";
@@ -87,6 +88,11 @@ async function requireAdminSession() {
     // page shows the login form when there's no admin session.
     redirect("/admin?relogin=1");
   }
+  // The cookie alone isn't enough: re-check the live AdminUsers row, so an
+  // account IT has just deactivated, deleted or demoted to Location Account
+  // can't keep making changes for the rest of its 30-minute elevation.
+  const current = await getCurrentAdminUser();
+  if (!current) redirect("/admin?relogin=1");
   return admin;
 }
 
@@ -362,20 +368,22 @@ export async function saveRotationOrderAction(
   }
 
   // 2) Global uniqueness — each position number belongs to exactly one section.
-  const owner = new Map<number, string>();
+  // Keyed by section id (not name), so two sections that happen to share a
+  // name still can't be given the same position.
+  const owner = new Map<number, { id: string; name: string }>();
   for (const p of parsed) {
     for (const pos of p.positions) {
       const existing = owner.get(pos);
-      if (existing && existing !== p.name) {
+      if (existing && existing.id !== p.id) {
         redirect(
           adminUrl(outletId, {
             rerror: "order_invalid",
-            rmsg: `Position ${pos} is used by more than one section (“${existing}” and “${p.name}”). Each position must be unique.`,
+            rmsg: `Position ${pos} is used by more than one section (“${existing.name}” and “${p.name}”). Each position must be unique.`,
             tab: "sections",
           }),
         );
       }
-      owner.set(pos, p.name);
+      owner.set(pos, { id: p.id, name: p.name });
     }
   }
 
@@ -738,7 +746,27 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
 // Start Day / End Day
 // ---------------------------------------------------------------------------
 
+/**
+ * Outlets with a Start Day in progress on this server. Two presses at the same
+ * moment (two tabs, two admins) used to both pass the "already open?" check
+ * and create two open days. The second one now waits for the first to finish,
+ * then sees the day is already open.
+ */
+const startDayQueue = new Map<string, Promise<unknown>>();
+
 export async function startDayAction(formData: FormData): Promise<void> {
+  const outletId = String(formData.get("outletId") ?? "");
+  const previous = startDayQueue.get(outletId) ?? Promise.resolve();
+  const run = previous.catch(() => undefined).then(() => startDayNow(formData));
+  startDayQueue.set(outletId, run);
+  try {
+    await run;
+  } finally {
+    if (startDayQueue.get(outletId) === run) startDayQueue.delete(outletId);
+  }
+}
+
+async function startDayNow(formData: FormData): Promise<void> {
   const session = await requirePortalSession();
   await requireAdminSession();
 
@@ -801,6 +829,19 @@ export async function endDayAction(formData: FormData): Promise<void> {
   }
 
   await closeOperatingDay(openDay.id, session.email);
+
+  // If a duplicate open day ever slipped in (two Start Day presses at once
+  // before the guard above existed), close it too, so it can't reappear as
+  // "today" after End Day. Best-effort; never blocks End Day.
+  try {
+    for (let i = 0; i < 5; i++) {
+      const stray = await getOpenOperatingDay(outletId);
+      if (!stray || stray.id === openDay.id) break;
+      await closeOperatingDay(stray.id, session.email);
+    }
+  } catch {
+    // Ignore — the main day is already closed.
+  }
 
   // Record the End-of-Day summary + a ready-to-send email body. Best-effort:
   // a missing EndOfDayLog list or a mail hiccup must never stop End Day from

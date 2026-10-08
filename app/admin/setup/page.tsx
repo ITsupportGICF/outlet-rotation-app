@@ -23,12 +23,16 @@ export default async function AccountSetupPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const session = await getSession();
-  if (!session) redirect("/auth/signin");
-  if (!hasPortalAccess(session)) redirect("/?error=access_denied");
-
   const params = await searchParams;
   const token = str(params.token) ?? "";
+
+  const session = await getSession();
+  if (!session) {
+    // Keep the invite link through sign-in, so the invitee lands back here.
+    const here = token ? `/admin/setup?token=${encodeURIComponent(token)}` : "/admin/setup";
+    redirect(`/auth/signin?returnTo=${encodeURIComponent(here)}`);
+  }
+  if (!hasPortalAccess(session)) redirect("/?error=access_denied");
   const user = token ? await findAdminUserByInviteToken(token) : null;
 
   return (

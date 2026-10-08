@@ -167,7 +167,9 @@ export async function performRotationAction(formData: FormData): Promise<void> {
   revalidatePath("/input");
   revalidatePath("/dashboard");
 
-  const base = `/input?outletId=${encodeURIComponent(outletId)}`;
+  // `t` makes every result unique, so two identical results in a row (e.g. the
+  // same section rotated twice) each show their confirmation.
+  const base = `/input?outletId=${encodeURIComponent(outletId)}&t=${Date.now()}`;
   if (outcome.ok) {
     redirect(`${base}&done=${encodeURIComponent(outcome.sectionName)}`);
   }
@@ -283,7 +285,9 @@ export async function overrideSectionAction(formData: FormData): Promise<void> {
   revalidatePath("/input");
   revalidatePath("/dashboard");
 
-  const base = `/input?outletId=${encodeURIComponent(outletId)}`;
+  // `t` makes every result unique, so two identical results in a row (e.g. the
+  // same section rotated twice) each show their confirmation.
+  const base = `/input?outletId=${encodeURIComponent(outletId)}&t=${Date.now()}`;
   if (outcome.ok) {
     redirect(`${base}&overridden=${encodeURIComponent(outcome.sectionName)}`);
   }
@@ -328,7 +332,9 @@ export async function undoLastRotationAction(formData: FormData): Promise<void> 
     redirect("/input?rerror=wrong_location");
   }
 
-  const base = `/input?outletId=${encodeURIComponent(outletId)}`;
+  // `t` makes every result unique, so two identical results in a row (e.g. the
+  // same section rotated twice) each show their confirmation.
+  const base = `/input?outletId=${encodeURIComponent(outletId)}&t=${Date.now()}`;
 
   const openDay = await getOpenOperatingDay(outletId);
   if (!openDay) redirect(`${base}&rerror=no_open_day`);
@@ -349,8 +355,11 @@ export async function undoLastRotationAction(formData: FormData): Promise<void> 
   // (another device rotated, or this button was pressed twice). Confirm the
   // press we're about to remove is STILL the most recent one, and that the
   // client was looking at that same press.
+  // Required: the Undo button always sends the rotation it was showing. A
+  // request without it (crafted or replayed) is refused rather than undoing
+  // whatever happens to be latest.
   const expectedAt = String(formData.get("rotatedAt") ?? "");
-  if (expectedAt && expectedAt !== press.rotatedAt) {
+  if (!expectedAt || expectedAt !== press.rotatedAt) {
     redirect(`${base}&rerror=undo_conflict`);
   }
 

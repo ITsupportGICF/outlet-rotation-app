@@ -28,6 +28,7 @@ import { verifyPassword } from "@/lib/security/password";
 import {
   type PermissionLevel,
   isPermissionLevel,
+  PERMISSION_LEVELS,
   canAccessAdminPortal,
 } from "@/lib/auth/permissions";
 
@@ -64,6 +65,27 @@ export type AdminUserRecord = {
   inviteExpiresAt: string | null;
 };
 
+/**
+ * Map the stored PermissionLevel to a known level.
+ *  - Empty (legacy rows created before levels existed) → IT, so the original
+ *    seeded admin keeps bootstrapping the hierarchy. Unchanged behaviour.
+ *  - A known level, ignoring case/extra spaces → that level.
+ *  - Anything else (a typo typed straight into SharePoint) → the LOWEST level.
+ *    It used to fall through to IT, so a typo silently granted full access.
+ */
+function toPermissionLevel(raw: unknown): PermissionLevel {
+  if (raw === undefined || raw === null || (typeof raw === "string" && raw.trim() === "")) {
+    return "IT";
+  }
+  if (isPermissionLevel(raw)) return raw;
+  if (typeof raw === "string") {
+    const norm = raw.trim().replace(/\s+/g, " ").toLowerCase();
+    const match = PERMISSION_LEVELS.find((l) => l.toLowerCase() === norm);
+    if (match) return match;
+  }
+  return "Location Account";
+}
+
 function toRecord(item: GraphListItem<AdminUserFields>): AdminUserRecord {
   const f = item.fields;
   const passwordHash = f.PasswordHash ?? "";
@@ -73,11 +95,7 @@ function toRecord(item: GraphListItem<AdminUserFields>): AdminUserRecord {
     email: (f.Email ?? "").trim(),
     displayName: f.DisplayName ?? f.Title ?? "",
     passwordHash,
-    // Legacy rows created before this feature have no PermissionLevel — treat
-    // them as IT so the original seeded admin bootstraps the hierarchy.
-    permissionLevel: isPermissionLevel(f.PermissionLevel)
-      ? f.PermissionLevel
-      : "IT",
+    permissionLevel: toPermissionLevel(f.PermissionLevel),
     isActive: f.IsActive ?? false,
     // Legacy rows have a password but no SetupComplete flag — they're already
     // set up.
@@ -357,7 +375,32 @@ export type AdminLoginResult =
  * Returns the SAME "invalid_credentials" for "no such user" and "wrong
  * password" — never reveal whether a username exists.
  */
+/**
+ * Login attempts for the same username run one at a time. Without this, a
+ * burst of parallel wrong guesses all read FailedAttempts=0 and all write 1,
+ * so the 5-attempt lockout never triggers. Queued attempts each re-read the
+ * account, so the count is exact. Normal single logins are unaffected.
+ */
+const loginQueue = new Map<string, Promise<unknown>>();
+
 export async function verifyAdminLogin(
+  username: string,
+  password: string,
+): Promise<AdminLoginResult> {
+  const key = username.trim().toLowerCase();
+  const previous = loginQueue.get(key) ?? Promise.resolve();
+  const run = previous
+    .catch(() => undefined)
+    .then(() => verifyAdminLoginNow(username, password));
+  loginQueue.set(key, run);
+  try {
+    return await run;
+  } finally {
+    if (loginQueue.get(key) === run) loginQueue.delete(key);
+  }
+}
+
+async function verifyAdminLoginNow(
   username: string,
   password: string,
 ): Promise<AdminLoginResult> {

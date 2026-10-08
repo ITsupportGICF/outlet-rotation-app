@@ -47,9 +47,10 @@ export default function ActionFeedback() {
   const undone = params.get("undone");
   const rerror = params.get("rerror");
   const outletId = params.get("outletId");
+  const stamp = params.get("t");
 
-  const sig = `${done}|${overridden}|${undone}|${rerror}`;
-  const hasIncoming = sig !== "null|null|null|null";
+  const hasIncoming = Boolean(done || overridden || undone || rerror);
+  const sig = `${done}|${overridden}|${undone}|${rerror}|${stamp}`;
   const visible = hasIncoming && sig !== dismissedSig;
 
   useEffect(() => {
