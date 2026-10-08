@@ -14,6 +14,8 @@
  */
 import { useFormStatus } from "react-dom";
 
+import Portal from "@/app/_components/Portal";
+
 export default function SubmitButton({
   children,
   className = "btn btn-primary btn-md",
@@ -55,6 +57,7 @@ export default function SubmitButton({
       </button>
 
       {overlay && pending && (
+        <Portal>
         <div className="action-overlay" role="status" aria-live="polite">
           <div className="glass glass-gold action-overlay-card">
             <span className="spinner" aria-hidden="true" />
@@ -66,6 +69,7 @@ export default function SubmitButton({
             </p>
           </div>
         </div>
+        </Portal>
       )}
     </>
   );

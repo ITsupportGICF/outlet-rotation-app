@@ -48,6 +48,23 @@ export async function currentUserIsIT(): Promise<boolean> {
   );
 }
 
+/**
+ * The same question as currentUserIsIT(), but it never throws: if the lookup
+ * fails, the answer is "not IT".
+ *
+ * Use this wherever IT unlocks an EXTRA privilege (such as undo with no time
+ * limit). Failing CLOSED there just means the normal rules apply, which is the
+ * safe outcome. (Maintenance mode is the opposite case — there a failed lookup
+ * fails OPEN, because the alternative would be locking everyone out.)
+ */
+export async function currentUserIsITFailClosed(): Promise<boolean> {
+  try {
+    return await currentUserIsIT();
+  } catch {
+    return false;
+  }
+}
+
 export type MaintenanceView = {
   /** Maintenance is switched on. */
   on: boolean;

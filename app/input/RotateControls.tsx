@@ -12,6 +12,7 @@ import { useState } from "react";
 
 import { performRotationAction, overrideSectionAction } from "@/lib/actions/rotation";
 import SubmitButton from "@/app/_components/SubmitButton";
+import Portal from "@/app/_components/Portal";
 
 export default function RotateControls({
   outletId,
@@ -64,6 +65,7 @@ export default function RotateControls({
       </button>
 
       {confirming && (
+        <Portal>
         <div
           role="dialog"
           aria-modal="true"
@@ -111,6 +113,7 @@ export default function RotateControls({
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );

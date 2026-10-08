@@ -10,7 +10,8 @@ import { formatTimeFriendly, formatClockTime } from "@/lib/time";
 import Ambient from "@/app/_components/Ambient";
 import AppHeader from "@/app/_components/AppHeader";
 import OutletPicker from "@/app/_components/OutletPicker";
-import { undoExpiresAt } from "@/lib/rotation";
+import { undoExpiresAt, canUndoPress } from "@/lib/rotation";
+import { currentUserIsITFailClosed } from "@/lib/auth/maintenance";
 import RotateControls from "./RotateControls";
 import UndoLastRotation from "./UndoLastRotation";
 import ActionFeedback from "./ActionFeedback";
@@ -121,6 +122,9 @@ async function OutletInput({ outletId }: { outletId: string }) {
 
   const { outlet, openDay, sections, nextSectionId, totalRotations, lastPress } = view;
 
+  // IT can undo at any time; everyone else within the 2-minute window.
+  const undoUnlimited = lastPress ? await currentUserIsITFailClosed() : false;
+
   const undoSectionName = lastPress
     ? (sections.find((s) => s.section.id === lastPress.sectionId)?.section.name ??
       "the last section")
@@ -145,12 +149,13 @@ async function OutletInput({ outletId }: { outletId: string }) {
         </div>
       </div>
 
-      {openDay && lastPress && undoSectionName && (
+      {openDay && lastPress && undoSectionName && canUndoPress(lastPress, undoUnlimited) && (
         <UndoLastRotation
           outletId={outlet.id}
           sectionName={undoSectionName}
           rotatedAt={lastPress.rotatedAt}
           expiresAtMs={undoExpiresAt(lastPress)}
+          unlimited={undoUnlimited}
         />
       )}
 

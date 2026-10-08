@@ -37,8 +37,9 @@ import {
   getNextSectionId,
   advancingPressCount,
   lastPress,
-  isUndoable,
+  canUndoPress,
 } from "@/lib/rotation";
+import { currentUserIsITFailClosed } from "@/lib/auth/maintenance";
 
 export type RotationOutcome =
   | { ok: true; written: number; sectionName: string }
@@ -336,9 +337,13 @@ export async function undoLastRotationAction(formData: FormData): Promise<void> 
   const press = lastPress(rotations);
   if (!press) redirect(`${base}&rerror=nothing_to_undo`);
 
-  // The window is measured from the press's stored RotatedAt, so a refresh or
-  // a re-opened page can never extend it.
-  if (!isUndoable(press)) redirect(`${base}&rerror=undo_expired`);
+  // IT may undo at any time; every level below IT only within the 2-minute
+  // window, measured from the press's stored RotatedAt so a refresh or a
+  // re-opened page can never extend it. The IT check is re-read from
+  // SharePoint here, on the server, and fails CLOSED — if it can't be
+  // confirmed, the normal 2-minute rule applies.
+  const unlimited = await currentUserIsITFailClosed();
+  if (!canUndoPress(press, unlimited)) redirect(`${base}&rerror=undo_expired`);
 
   // The client may have been showing a press that has since been superseded
   // (another device rotated, or this button was pressed twice). Confirm the
@@ -357,7 +362,7 @@ export async function undoLastRotationAction(formData: FormData): Promise<void> 
   ) {
     redirect(`${base}&rerror=undo_conflict`);
   }
-  if (!isUndoable(latest)) redirect(`${base}&rerror=undo_expired`);
+  if (!canUndoPress(latest, unlimited)) redirect(`${base}&rerror=undo_expired`);
 
   // Section name for the confirmation message and the email, resolved before
   // the rows disappear.

@@ -98,7 +98,7 @@ export default function ActionFeedback() {
       ? "Section Rotated Successfully"
       : "Section Skipped";
   const detail = isUndone
-    ? `${undone} was undone and is next to rotate again. A notification was sent.`
+    ? `${undone} was undone.`
     : isSuccess
       ? `${done} is done — next section is ready.`
       : `${overridden} was overridden. A notification was sent.`;

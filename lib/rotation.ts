@@ -179,3 +179,21 @@ export function isUndoable(press: RotationPress, now: Date = new Date()): boolea
   if (Number.isNaN(at)) return false;
   return now.getTime() < at + UNDO_WINDOW_MS;
 }
+
+/**
+ * THE undo policy — used by both the Input Screen (to decide whether to offer
+ * the button) and the server action (to decide whether to allow it), so the two
+ * can never disagree.
+ *
+ *  - IT (`unlimited`): may undo the most recent rotation at any time.
+ *  - Every level below IT: only within UNDO_WINDOW_MS of the rotation's own
+ *    stored timestamp.
+ */
+export function canUndoPress(
+  press: RotationPress,
+  unlimited: boolean,
+  now: Date = new Date(),
+): boolean {
+  if (unlimited) return true;
+  return isUndoable(press, now);
+}
