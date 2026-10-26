@@ -118,6 +118,7 @@ const TABS = [
   { key: "users", label: "Users" },
   { key: "notifications", label: "Notifications" },
   { key: "maintenance", label: "Maintenance" },
+  { key: "events", label: "Event Log" },
 ] as const;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -295,7 +296,9 @@ async function AdminWorkspace({
       <div className="glass flex flex-wrap gap-1.5 p-2">
         {TABS.map((t) => {
           const href =
-            t.key === "locations"
+            t.key === "events"
+              ? "/admin/events"
+              : t.key === "locations"
               ? `/admin?tab=locations${activeOutletId ? `&outletId=${encodeURIComponent(activeOutletId)}` : ""}`
               : `/admin?tab=${t.key}${activeOutletId ? `&outletId=${encodeURIComponent(activeOutletId)}` : ""}`;
           return (

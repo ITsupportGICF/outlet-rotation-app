@@ -311,3 +311,33 @@ export function redMinutesForSection(
   }
   return Math.round(redMs / 60_000);
 }
+
+/* ------------------------------------------------------------------------- */
+/* Event Log helpers                                                         */
+/* ------------------------------------------------------------------------- */
+
+/** Add whole days to an ET "YYYY-MM-DD" date. */
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return dateStr;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** "HH:MM" (24h) wall-clock time of an instant, in ET. */
+export function etTimeOfDayString(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: OUTLET_TIME_ZONE,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(date);
+  let h = "00";
+  let mi = "00";
+  for (const p of parts) {
+    if (p.type === "hour") h = p.value === "24" ? "00" : p.value.padStart(2, "0");
+    if (p.type === "minute") mi = p.value.padStart(2, "0");
+  }
+  return `${h}:${mi}`;
+}

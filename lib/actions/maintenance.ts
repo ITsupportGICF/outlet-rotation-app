@@ -24,6 +24,7 @@ import { readMaintenanceState, setMaintenanceState } from "@/lib/graph/app-contr
 import { parseReturnAt, formatReturnAt } from "@/lib/maintenance-message";
 import { appendConfigChange } from "@/lib/graph/config-change-log";
 import { allowDuringMaintenance } from "@/lib/graph/client";
+import { logEvent } from "@/lib/graph/event-log";
 
 export type MaintenanceResult = { ok: boolean; message: string };
 
@@ -135,6 +136,12 @@ export async function startMaintenanceAction(
     };
   }
 
+  logEvent({
+    type: wasOn ? "Maintenance Time Updated" : "Maintenance Mode On",
+    actor: actor.name,
+    details: `Expected back ${formatReturnAt(check.value) ?? check.value}`,
+    key: "maintenance",
+  });
   await log(wasOn ? "Maintenance Time Updated" : "Maintenance Mode On", actor.name, [
     { label: "Expected back", value: formatReturnAt(check.value) ?? check.value },
   ]);
@@ -169,6 +176,12 @@ export async function endMaintenanceAction(
     return { ok: false, message: "Couldn't save the setting. Please try again." };
   }
 
+  logEvent({
+    type: "Maintenance Mode Off",
+    actor: actor.name,
+    details: "App reopened to everyone",
+    key: "maintenance",
+  });
   await log("Maintenance Mode Off", actor.name, [
     { label: "Status", value: "App reopened to everyone" },
   ]);

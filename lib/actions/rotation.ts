@@ -17,6 +17,7 @@ import { getSession, hasPortalAccess } from "@/lib/auth/session";
 import { sessionCanUseOutlet } from "@/lib/auth/locations";
 import { getOpenOperatingDay } from "@/lib/graph/operating-days";
 import { getOutlet } from "@/lib/graph/outlets";
+import { logEvent } from "@/lib/graph/event-log";
 import { listActiveSectionsForOutlet } from "@/lib/graph/sections";
 import { listCommodities } from "@/lib/graph/commodities";
 import { listMixForSection } from "@/lib/graph/section-mix";
@@ -392,6 +393,13 @@ export async function undoLastRotationAction(formData: FormData): Promise<void> 
 
   revalidatePath("/input");
   revalidatePath("/dashboard");
+
+  // The undone rows are gone from RotationHistory, so this is the only record.
+  logEvent({
+    type: "Rotation Undone",
+    outlet: await getOutlet(outletId).then((o) => o?.name ?? null).catch(() => null),
+    details: `${sectionName} — rotation from ${rotationTimeLabel} removed (${latest.rotationType})`,
+  });
 
   // Notify through the existing alert system (best-effort — the undo itself
   // has already succeeded and must not be reported as failed if mail is down).

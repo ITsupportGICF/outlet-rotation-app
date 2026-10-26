@@ -39,6 +39,8 @@ export const LIST = {
   endOfDayLog: "EndOfDayLog",
   configChangeLog: "ConfigChangeLog",
   notificationSettings: "NotificationSettings",
+  /** Optional: the Admin Event Log's own list. Created automatically if possible. */
+  eventLog: "EventLog",
 } as const;
 
 export type ListKey = keyof typeof LIST;

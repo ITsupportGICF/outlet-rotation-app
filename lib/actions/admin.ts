@@ -24,6 +24,7 @@ import {
   clearAdminSession,
 } from "@/lib/auth/admin-session";
 import { getCurrentAdminUser } from "@/lib/auth/current-admin";
+import { logEvent } from "@/lib/graph/event-log";
 import { verifyAdminLogin } from "@/lib/graph/admin-users";
 import { allowDuringMaintenance } from "@/lib/graph/client";
 import { getOutlet, createOutlet, updateOutlet } from "@/lib/graph/outlets";
@@ -111,6 +112,15 @@ function adminUrl(
   return `/admin?${q.toString()}`;
 }
 
+/** A store's name for the Event Log (null if it can't be read — never throws). */
+async function outletNameOf(outletId: string): Promise<string | null> {
+  try {
+    return (await getOutlet(outletId))?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function revalidateAll() {
   revalidatePath("/admin");
   revalidatePath("/input");
@@ -132,6 +142,7 @@ function revalidateAll() {
 export async function adminSignOutAction(): Promise<void> {
   // Keep the main app session — we only drop the elevation.
   await requirePortalSession();
+  logEvent({ type: "Admin Sign-out", details: "Signed out of the Admin Center" });
   await clearAdminSession();
   revalidatePath("/admin");
   redirect("/admin?signedout=1");
@@ -170,6 +181,11 @@ export async function adminLoginAction(
   );
 
   if (!result.ok) {
+    logEvent({
+      type: "Admin Sign-in Failed",
+      actor: parsed.data.username,
+      details: `Username “${parsed.data.username}” — ${result.reason.replace(/_/g, " ")}`,
+    });
     const messages: Record<typeof result.reason, string> = {
       invalid_credentials: "Incorrect username or password.",
       account_locked:
@@ -183,6 +199,12 @@ export async function adminLoginAction(
   }
 
   await setAdminSession(result.username);
+  logEvent({
+    type: "Admin Sign-in",
+    actor: result.username,
+    details: `${result.displayName || result.username} signed in (${result.permissionLevel})`,
+    key: `signin:${result.username.toLowerCase()}`,
+  });
   redirect("/admin");
 }
 
@@ -203,6 +225,11 @@ export async function createOutletAction(formData: FormData): Promise<void> {
   });
   if (!parsed.success) redirect("/admin");
   await createOutlet(parsed.data);
+  logEvent({
+    type: "Location Added",
+    outlet: parsed.data.name,
+    details: `${parsed.data.name} (${parsed.data.isActive ? "active" : "inactive"})`,
+  });
   revalidateAll();
   redirect(adminUrl("", { status: "outlet_added", tab: "locations" }));
 }
@@ -213,6 +240,16 @@ export async function toggleOutletActiveAction(
 ): Promise<void> {
   await requireAdminSession();
   await updateOutlet(itemId, { isActive });
+  try {
+    const outlet = await getOutlet(itemId);
+    logEvent({
+      type: isActive ? "Location Activated" : "Location Deactivated",
+      outlet: outlet?.name ?? null,
+      details: `${outlet?.name ?? "Location"} is now ${isActive ? "active" : "inactive"}`,
+    });
+  } catch {
+    // The change is saved; the log entry is best-effort.
+  }
   revalidateAll();
   redirect(adminUrl("", { status: "outlet_saved", tab: "locations" }));
 }
@@ -305,6 +342,11 @@ export async function createSectionAction(formData: FormData): Promise<void> {
     // Swallow — the section was added; the email is a nice-to-have.
   }
 
+  logEvent({
+    type: "Section Added",
+    outlet: await outletNameOf(outletId),
+    details: `${name} — position ${position}, ${isActive ? "active" : "inactive"}`,
+  });
   revalidateAll();
   redirect(adminUrl(outletId, { status: "section_added", tab: "sections" }));
 }
@@ -320,6 +362,11 @@ export async function updateSectionAction(formData: FormData): Promise<void> {
   if (!outletId || !itemId || !name) redirect("/admin");
 
   await updateSection(itemId, { name, isActive });
+  logEvent({
+    type: "Section Updated",
+    outlet: await outletNameOf(outletId),
+    details: `${name} — ${isActive ? "active" : "inactive"}`,
+  });
   revalidateAll();
   redirect(adminUrl(outletId, { status: "section_saved", tab: "sections" }));
 }
@@ -403,6 +450,16 @@ export async function saveRotationOrderAction(
     redirect(adminUrl(outletId, { rerror: "order_invalid", rmsg, tab: "sections" }));
   }
 
+  const changedOrder = parsed.filter((p) => p.current !== p.positions.join(","));
+  if (changedOrder.length > 0) {
+    logEvent({
+      type: "Rotation Order Changed",
+      outlet: await outletNameOf(outletId),
+      details: changedOrder
+        .map((p) => `${p.name}: ${p.current || "—"} → ${p.positions.join(",")}`)
+        .join("; "),
+    });
+  }
   revalidateAll();
   redirect(adminUrl(outletId, { status: "rotation_saved", tab: "sections" }));
 }
@@ -445,6 +502,11 @@ export async function toggleSectionActiveAction(
     // Swallow — the change is already saved.
   }
 
+  logEvent({
+    type: isActive ? "Section Activated" : "Section Deactivated",
+    outlet: storeName,
+    details: sectionName,
+  });
   revalidateAll();
   redirect(adminUrl(outletId, { status: "section_saved", tab: "sections" }));
 }
@@ -483,6 +545,7 @@ export async function deleteSectionAction(
     // Swallow — the section is already removed.
   }
 
+  logEvent({ type: "Section Removed", outlet: storeName, details: sectionName });
   revalidateAll();
   redirect(adminUrl(outletId, { status: "section_removed", tab: "sections" }));
 }
@@ -513,6 +576,11 @@ export async function setMixQuantityAction(formData: FormData): Promise<void> {
   if (!parsed.success) redirect("/admin");
 
   await setMixQuantity(parsed.data);
+  logEvent({
+    type: "Section Mix Changed",
+    outlet: await outletNameOf(parsed.data.outletId),
+    details: `${parsed.data.sectionName} — ${parsed.data.commodityName}: ${parsed.data.quantity}`,
+  });
   revalidateAll();
   redirect(adminUrl(parsed.data.outletId, { status: "mix_saved", tab: "mix" }));
 }
@@ -567,6 +635,15 @@ export async function saveSectionMixAction(formData: FormData): Promise<void> {
     }
   }
 
+  if (changed.length > 0) {
+    logEvent({
+      type: "Section Mix Changed",
+      outlet: outletName || null,
+      details: `${sectionName || "Section"} — ${changed
+        .map((l) => `${l.commodityName}: ${l.from} → ${l.to}`)
+        .join(", ")}`,
+    });
+  }
   revalidateAll();
   redirect(adminUrl(outletId, { status: "mix_saved", tab: "mix" }));
 }
@@ -600,6 +677,11 @@ export async function setCommodityGoalAction(formData: FormData): Promise<void> 
   if (!parsed.success) redirect("/admin");
 
   await setCommodityGoal(parsed.data);
+  logEvent({
+    type: "Daily Goals Saved",
+    outlet: parsed.data.outletName,
+    details: `${parsed.data.commodityName}: ${parsed.data.dailyGoal}`,
+  });
   revalidateAll();
   redirect(adminUrl(parsed.data.outletId, { status: "goal_saved", tab: "goals" }));
 }
@@ -620,6 +702,13 @@ export async function saveGoalsAction(formData: FormData): Promise<void> {
       commodityName: c.name,
       dailyGoal: clampQuantity(formData.get(`goal_${c.id}`)),
     })),
+  });
+  logEvent({
+    type: "Daily Goals Saved",
+    outlet: outletName || null,
+    details: commodities
+      .map((c) => `${c.name}: ${clampQuantity(formData.get(`goal_${c.id}`))}`)
+      .join(", "),
   });
   revalidateAll();
   redirect(adminUrl(outletId, { status: "goals_saved", tab: "goals" }));
@@ -665,6 +754,11 @@ export async function applyGoalsToTodayAction(
     })),
   });
 
+  logEvent({
+    type: "Goals Applied to Today",
+    outlet: outletName || null,
+    details: entries.map((e) => `${e.commodityName}: ${e.dailyGoal}`).join(", "),
+  });
   revalidateAll();
   redirect(adminUrl(outletId, { status: "goals_applied", tab: "goals" }));
 }
@@ -685,6 +779,14 @@ export async function saveNotificationSettingsAction(
     endOfDay: formData.get("enableEndOfDay") === "on",
     configChange: formData.get("enableConfigChange") === "on",
     override: formData.get("enableOverride") === "on",
+  });
+  logEvent({
+    type: "Notification Settings Saved",
+    details: [
+      `End of Day ${formData.get("enableEndOfDay") === "on" ? "on" : "off"}`,
+      `Config changes ${formData.get("enableConfigChange") === "on" ? "on" : "off"}`,
+      `Overrides ${formData.get("enableOverride") === "on" ? "on" : "off"}`,
+    ].join(", "),
   });
   revalidateAll();
   redirect(adminUrl("", { status: "notifications_saved", tab: "notifications" }));
@@ -740,6 +842,15 @@ export async function saveSettingsAction(formData: FormData): Promise<void> {
     miscAmount: parsed.data.miscAmount,
   });
 
+  logEvent({
+    type: "Store Settings Saved",
+    outlet: parsed.data.outletName,
+    details: [
+      `Hours ${parsed.data.operatingHoursStart || "—"}–${parsed.data.operatingHoursEnd || "—"}`,
+      `green under ${parsed.data.greenThresholdMinutes}m`,
+      `red after ${parsed.data.yellowThresholdMinutes}m`,
+    ].join(", "),
+  });
   revalidateAll();
   redirect(adminUrl(parsed.data.outletId, { status: "settings_saved", tab: "settings" }));
 }

@@ -49,6 +49,8 @@ type AdminUserFields = {
   FailedAttempts?: number;
   LockedUntil?: string;
   LastLoginAt?: string;
+  /** SharePoint's built-in creation time (not a custom column). */
+  Created?: string;
 };
 
 export type AdminUserRecord = {
@@ -63,6 +65,10 @@ export type AdminUserRecord = {
   failedAttempts: number;
   lockedUntil: string | null;
   inviteExpiresAt: string | null;
+  /** When the account row was created (SharePoint built-in), for the Event Log. */
+  createdAt: string | null;
+  /** Most recent successful Admin Center sign-in, for the Event Log. */
+  lastLoginAt: string | null;
 };
 
 /**
@@ -103,6 +109,8 @@ function toRecord(item: GraphListItem<AdminUserFields>): AdminUserRecord {
     failedAttempts: f.FailedAttempts ?? 0,
     lockedUntil: f.LockedUntil ?? null,
     inviteExpiresAt: f.InviteExpiresAt ?? null,
+    createdAt: f.Created ?? null,
+    lastLoginAt: f.LastLoginAt ?? null,
   };
 }
 

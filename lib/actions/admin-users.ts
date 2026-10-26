@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { env } from "@/lib/env";
 import { getSession, hasPortalAccess } from "@/lib/auth/session";
 import { getCurrentAdminUser } from "@/lib/auth/current-admin";
+import { logEvent } from "@/lib/graph/event-log";
 import {
   type AdminUserRecord,
   createAdminUser,
@@ -119,6 +120,11 @@ export async function createAdminUserAction(formData: FormData): Promise<void> {
 
   const link = inviteLink(token);
   const { sent } = await sendInviteEmail(email, name, link);
+  logEvent({
+    type: "Account Created",
+    details: `${name} (${email}) — ${levelRaw}, invite ${sent ? "emailed" : "link shown"}`,
+    key: `account:${email.toLowerCase()}`,
+  });
 
   revalidatePath("/admin");
   redirect(usersUrl({ msg: "user_created", invite: link, emailed: sent ? "1" : "0" }));
@@ -152,6 +158,10 @@ export async function setUserLevelAction(formData: FormData): Promise<void> {
   }
 
   await setUserPermissionLevel(itemId, newLevel);
+  logEvent({
+    type: "Permission Level Changed",
+    details: `${target.displayName || target.username}: ${target.permissionLevel} → ${newLevel}`,
+  });
   revalidatePath("/admin");
   redirect(usersUrl({ msg: "user_updated" }));
 }
@@ -179,6 +189,10 @@ export async function setUserActiveAction(
   }
 
   await setUserActive(itemId, isActive);
+  logEvent({
+    type: isActive ? "Account Activated" : "Account Deactivated",
+    details: `${target.displayName || target.username} (${target.permissionLevel})`,
+  });
   revalidatePath("/admin");
   redirect(usersUrl({ msg: isActive ? "user_activated" : "user_deactivated" }));
 }
@@ -200,6 +214,10 @@ export async function deleteUserAction(itemId: string): Promise<void> {
   }
 
   await deleteAdminUser(itemId);
+  logEvent({
+    type: "Account Deleted",
+    details: `${target.displayName || target.username}${target.email ? ` (${target.email})` : ""} — ${target.permissionLevel}`,
+  });
   revalidatePath("/admin");
   redirect(usersUrl({ msg: "user_deleted" }));
 }
@@ -216,6 +234,10 @@ export async function setUserPasswordAction(formData: FormData): Promise<void> {
   if (password.length < 10) deny("Password must be at least 10 characters.");
 
   await setUserPasswordHash(itemId, await hashPassword(password));
+  logEvent({
+    type: "Password Set",
+    details: `Password set for ${target.displayName || target.username}`,
+  });
   revalidatePath("/admin");
   redirect(usersUrl({ msg: "password_set" }));
 }
@@ -235,6 +257,7 @@ export async function setUsernameAction(formData: FormData): Promise<void> {
   if (await usernameTaken(username, itemId)) deny("That username is taken.");
 
   await setUsername(itemId, username);
+  logEvent({ type: "Username Changed", details: `${target.username} → ${username}` });
   revalidatePath("/admin");
   redirect(usersUrl({ msg: "username_changed" }));
 }
@@ -250,6 +273,10 @@ export async function resendInviteAction(itemId: string): Promise<void> {
 
   const link = inviteLink(await regenerateInvite(itemId));
   const { sent } = await sendInviteEmail(target.email, target.displayName, link);
+  logEvent({
+    type: "Invite Resent",
+    details: `${target.displayName || target.email} — invite ${sent ? "emailed" : "link shown"}`,
+  });
   revalidatePath("/admin");
   redirect(usersUrl({ msg: "invite_resent", invite: link, emailed: sent ? "1" : "0" }));
 }
@@ -297,6 +324,11 @@ export async function completeAccountSetupAction(
   await completeAccountSetup(user.itemId, {
     username,
     passwordHash: await hashPassword(password),
+  });
+  logEvent({
+    type: "Account Setup Completed",
+    actor: username,
+    details: `${user.displayName || username} chose username “${username}” (${user.permissionLevel})`,
   });
 
   redirect("/admin?msg=account_ready");
