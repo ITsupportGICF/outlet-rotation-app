@@ -97,6 +97,27 @@ export async function getOpenOperatingDay(
   return open[0] ?? null;
 }
 
+/**
+ * Every operating day recorded for an outlet (open and closed), oldest first
+ * by start time. Grows by about one row per outlet per day, and is filtered
+ * to the outlet, so it stays small. Used by the week-to-date End-of-Day email.
+ */
+export async function listOperatingDaysForOutlet(
+  outletId: string,
+): Promise<OperatingDay[]> {
+  const outletKey = Number(outletId);
+  if (!Number.isFinite(outletKey)) return [];
+
+  const { siteId, listId } = await listContext("operatingDays");
+  const items = await graphGetAll<GraphListItem<OperatingDayFields>>(
+    `/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=500&$filter=fields/OutletLookupId eq ${outletKey}`,
+    NON_INDEXED_QUERY_HEADER,
+  );
+  return items
+    .map(toOperatingDay)
+    .sort((a, b) => (a.startedAt ?? "").localeCompare(b.startedAt ?? ""));
+}
+
 export async function getOperatingDayById(
   itemId: string,
 ): Promise<OperatingDay | null> {

@@ -247,3 +247,67 @@ export function formatDateFriendly(iso: string | null | undefined): string {
 export function minutesBetween(from: Date, to: Date): number {
   return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 60000));
 }
+
+/* ------------------------------------------------------------------------- */
+/* Weeks (for the week-to-date End-of-Day email)                             */
+/* ------------------------------------------------------------------------- */
+
+/** Day of week for an ET "YYYY-MM-DD" date: 0 = Sunday … 6 = Saturday. */
+export function weekdayOfDateString(dateStr: string): number {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return NaN;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay();
+}
+
+/**
+ * The Monday that starts the week containing an ET "YYYY-MM-DD" date, as
+ * "YYYY-MM-DD". Weeks run Monday → Sunday, so a Sunday belongs to the week
+ * that began the Monday before, and every Monday starts a new week.
+ */
+export function mondayOfWeek(dateStr: string): string {
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return dateStr;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  const back = (d.getUTCDay() + 6) % 7; // Mon→0, Tue→1, … Sun→6
+  d.setUTCDate(d.getUTCDate() - back);
+  return d.toISOString().slice(0, 10);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Time in the red                                                           */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * How many minutes one section spent RED during a day — the same rule the
+ * Live Dashboard uses to colour it:
+ *  - its clock starts at its first real rotation of the day (before that it
+ *    reads green, so nothing counts);
+ *  - after each rotation it turns red once `redAfterMinutes` (the day's
+ *    yellow→red threshold) have passed without another rotation;
+ *  - it stays red until the next rotation, or until `endAt` (store close /
+ *    End Day), whichever comes first.
+ *
+ * @param rotationTimes ISO timestamps of the section's real rotations
+ *                      (Standard + Manual; overrides don't reset the clock)
+ */
+export function redMinutesForSection(
+  rotationTimes: string[],
+  redAfterMinutes: number,
+  endAt: Date,
+): number {
+  const end = endAt.getTime();
+  const times = rotationTimes
+    .map((t) => new Date(t).getTime())
+    .filter((t) => Number.isFinite(t))
+    .sort((a, b) => a - b);
+  if (times.length === 0 || !Number.isFinite(end)) return 0;
+
+  const threshold = Math.max(0, redAfterMinutes) * 60_000;
+  let redMs = 0;
+  for (let i = 0; i < times.length; i++) {
+    const turnsRed = times[i] + threshold;
+    const stopsAt = Math.min(i + 1 < times.length ? times[i + 1] : end, end);
+    if (stopsAt > turnsRed) redMs += stopsAt - turnsRed;
+  }
+  return Math.round(redMs / 60_000);
+}

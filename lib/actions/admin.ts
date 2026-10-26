@@ -61,6 +61,8 @@ import { listActiveCommodities } from "@/lib/graph/commodities";
 import {
   getEndOfDaySummary,
   buildEndOfDayEmailHtml,
+  buildWeeklyEndOfDayEmailHtml,
+  getWeekToDateReports,
 } from "@/lib/graph/day-summary";
 import { appendEndOfDayLog } from "@/lib/graph/end-of-day-log";
 import {
@@ -855,6 +857,17 @@ export async function endDayAction(formData: FormData): Promise<void> {
         summary.startedAt && summary.endedAt
           ? `${formatClockTime(summary.startedAt)} – ${formatClockTime(summary.endedAt)}`
           : "";
+      // Week to date: Monday's email holds Monday only; each later day adds
+      // itself, so Friday's email holds Monday–Friday. Resets every Monday.
+      // If the earlier days can't be read, fall back to today's report alone,
+      // exactly as before — the email is never skipped because of this.
+      let emailBodyHtml = buildEndOfDayEmailHtml(summary, { dateLabel, timeRange });
+      try {
+        const week = await getWeekToDateReports(outletId, openDay.id, summary);
+        if (week.length > 1) emailBodyHtml = buildWeeklyEndOfDayEmailHtml(week);
+      } catch {
+        // Keep the single-day email.
+      }
       await appendEndOfDayLog({
         outletName: summary.outletName,
         dateLabel,
@@ -866,7 +879,7 @@ export async function endDayAction(formData: FormData): Promise<void> {
         skipped: summary.overrides,
         manualRotations: summary.manualRotations,
         endedByEmail: session.email,
-        emailBodyHtml: buildEndOfDayEmailHtml(summary, { dateLabel, timeRange }),
+        emailBodyHtml,
       });
     }
   } catch {
