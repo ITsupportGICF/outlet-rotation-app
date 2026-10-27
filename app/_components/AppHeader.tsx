@@ -14,6 +14,7 @@ const NAV = [
   { key: "dashboard", href: "/dashboard", label: "Live Dashboard" },
   { key: "input", href: "/input", label: "Input" },
   { key: "admin", href: "/admin", label: "Admin Center" },
+  { key: "insights", href: "/insights", label: "Insights" },
 ];
 
 function getInitials(name: string): string {

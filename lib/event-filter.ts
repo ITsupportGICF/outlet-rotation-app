@@ -102,7 +102,7 @@ export function applyEventFilters(events: LogEvent[], f: EventFilters): LogEvent
       }
     }
     if (f.location === NO_LOCATION && e.outlet) return false;
-    if (f.location && f.location !== NO_LOCATION && e.outlet !== f.location) return false;
+    if (f.location && f.location !== NO_LOCATION && (e.outlet ?? "").trim() !== f.location) return false;
     return true;
   });
   const dir = f.order === "oldest" ? 1 : -1;

@@ -92,7 +92,11 @@ export default async function EventLogPage({
   try {
     const [log, outlets] = await Promise.all([getEventLog(start, end), listOutlets()]);
     result = log;
-    outletNames = outlets.map((o) => o.name);
+    // The Location filter matches by store name, so list each name once (two
+    // outlets can share a name, e.g. an old inactive copy of the same store).
+    outletNames = [...new Set(outlets.map((o) => o.name.trim()).filter(Boolean))].sort(
+      (a, b) => a.localeCompare(b),
+    );
   } catch {
     loadError = true;
   }

@@ -26,6 +26,12 @@ const AREAS = [
     description: "Manage outlets, sections, goals, hours, and the day.",
     symbol: "⚙",
   },
+  {
+    href: "/insights",
+    title: "Insights",
+    description: "Trends, comparisons and location performance over time.",
+    symbol: "◔",
+  },
 ];
 
 export default async function HomePage() {
@@ -59,8 +65,8 @@ export default async function HomePage() {
       </section>
 
       {/* Cards */}
-      <section className="relative mx-auto max-w-5xl px-6 pt-2 pb-16 sm:px-10">
-        <div className="grid gap-6 sm:grid-cols-3 sm:gap-7 lg:gap-8">
+      <section className="relative mx-auto max-w-6xl px-6 pt-2 pb-16 sm:px-10">
+        <div className="grid gap-6 sm:grid-cols-2 sm:gap-7 lg:grid-cols-4 lg:gap-6">
           {AREAS.map((area, i) => (
             <Link
               key={area.href}
