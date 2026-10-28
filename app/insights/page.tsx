@@ -283,7 +283,6 @@ async function InsightsBody({
         <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Kpi label="Goal completion" value={fmtPct(kpi.goalCompletion)} sub={`${kpi.goalsMet} of ${kpi.goalsTotal} daily commodity goals met`} />
           <Kpi label="Rotations" value={fmtCount(kpi.rotations)} sub={`${fmtPerDay(kpi.rotationsPerDay)} per day`} />
-          <Kpi label="Tables rotated" value={fmtCount(kpi.tables)} sub={`${fmtPerDay(kpi.tablesPerDay)} per day`} />
           <Kpi label="Time in red" value={fmtMinutes(kpi.redPerDay)} sub="average per day, all sections added up" />
           <Kpi label="Skip rate" value={fmtPct(kpi.skipRate)} sub={`${kpi.overrides} skips · ${kpi.manual} manual rotations`} />
           <Kpi
