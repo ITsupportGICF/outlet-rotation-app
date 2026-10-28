@@ -503,10 +503,10 @@ function emailShell(header: { title: string; subtitle: string; kicker?: string }
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef5fb;padding:24px 12px;font-family:'Segoe UI',Arial,sans-serif;">
   <tr><td align="center">
     <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 28px rgba(11,61,102,0.12);">
-      <tr><td style="background:linear-gradient(135deg,#0b3d66 0%,#155a94 100%);padding:26px 32px;border-bottom:4px solid #c9a227;">
-        <p style="margin:0;color:#dbe9f7;font-size:12px;letter-spacing:3px;text-transform:uppercase;">${escapeHtml(header.kicker ?? "Outlet Rotation App")}</p>
+      <tr><td bgcolor="#0b3d66" style="background-color:#0b3d66;background-image:linear-gradient(135deg,#0b3d66 0%,#155a94 100%);padding:26px 32px;border-bottom:4px solid #c9a227;">
+        <p style="margin:0;color:#f2d27a;font-size:12px;font-weight:600;letter-spacing:3px;text-transform:uppercase;">${escapeHtml(header.kicker ?? "Outlet Rotation App")}</p>
         <h1 style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:700;">${escapeHtml(header.title)}</h1>
-        <p style="margin:6px 0 0;color:#bcd4ec;font-size:14px;">${escapeHtml(header.subtitle)}</p>
+        <p style="margin:6px 0 0;color:#f4f8fc;font-size:14px;">${escapeHtml(header.subtitle)}</p>
       </td></tr>
       ${inner}
       <tr><td style="padding:16px 32px;background:#f4f9fd;border-top:1px solid #e6eef6;">
@@ -590,6 +590,42 @@ export function buildWeeklyEndOfDayEmailHtml(reports: DailyReport[]): string {
         </table>
       </td></tr>`;
 
+  // --- Week to date: everything above added up, in the same card layout ---
+  const sum = (pick: (s: EndOfDaySummary) => number) =>
+    reports.reduce((a, r) => a + pick(r.summary), 0);
+  const openTimes = reports.map((r) => r.summary.durationMinutes).filter((m): m is number => m != null);
+  const wtd = {
+    rotations: sum((s) => s.totalRotations),
+    tables: sum((s) => s.totalUnits),
+    goalsMet: sum((s) => s.goalsMet),
+    goalsTotal: sum((s) => s.goalsTotal),
+    overrides: sum((s) => s.overrides),
+    manual: sum((s) => s.manualRotations),
+    openMinutes: openTimes.length ? openTimes.reduce((a, b) => a + b, 0) : null,
+    red: sum((s) => s.timeInRedMinutes),
+  };
+  const first = shortDay(reports[0].date);
+  const last = shortDay(today.date);
+  const wtdCard = `<tr><td style="padding:16px 24px 4px;">
+        <p style="margin:0 0 2px;color:#0b3d66;font-size:15px;font-weight:700;">Week to date — total</p>
+        <p style="margin:0 0 4px;color:#5b7994;font-size:12px;">${escapeHtml(`${first.dow} ${first.md} – ${last.dow} ${last.md}`)} · ${reports.length} days added together</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:8px;">
+          <tr>
+            ${statCell("Total Rotations", String(wtd.rotations))}
+            ${statCell("Tables Rotated", String(wtd.tables))}
+            ${statCell("Goals Met", wtd.goalsTotal > 0 ? `${wtd.goalsMet} / ${wtd.goalsTotal}` : "—")}
+          </tr>
+          <tr>
+            ${statCell("Skipped / Overridden", String(wtd.overrides))}
+            ${statCell("Of Which Manual", String(wtd.manual))}
+            ${statCell("Open Time", formatDurationLabel(wtd.openMinutes))}
+          </tr>
+          <tr>
+            ${statCell("Time in Red", redLabel(wtd.red), { colspan: 3, red: wtd.red > 0 })}
+          </tr>
+        </table>
+      </td></tr>`;
+
   // --- Tables rotated per commodity, per day ---
   const commodityNames = new Map<string, string>();
   for (const r of reports) for (const c of r.summary.commodities) commodityNames.set(c.commodityId, c.commodityName);
@@ -627,11 +663,13 @@ export function buildWeeklyEndOfDayEmailHtml(reports: DailyReport[]): string {
   const dailySections = reports
     .map((r) => {
       const banner = r.isToday ? "#c9a227" : "#155a94";
+      // Dark text on the gold "Today" banner; white on blue. (White on gold was hard to read.)
+      const ink = r.isToday ? "#0b2a47" : "#ffffff";
       return `<tr><td style="padding:26px 24px 0;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${banner};border-radius:10px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${banner}" style="background-color:${banner};border-radius:10px;">
           <tr><td style="padding:12px 16px;">
-            <p style="margin:0;color:#ffffff;font-size:16px;font-weight:700;">${escapeHtml(r.dateLabel)}${r.isToday ? " — Today" : ""}</p>
-            ${r.timeRange ? `<p style="margin:2px 0 0;color:#ffffff;opacity:0.85;font-size:13px;">${escapeHtml(r.timeRange)}</p>` : ""}
+            <p style="margin:0;color:${ink};font-size:16px;font-weight:700;">${escapeHtml(r.dateLabel)}${r.isToday ? " — Today" : ""}</p>
+            ${r.timeRange ? `<p style="margin:2px 0 0;color:${ink};font-size:13px;">${escapeHtml(r.timeRange)}</p>` : ""}
           </td></tr>
         </table>
       </td></tr>
@@ -645,7 +683,7 @@ export function buildWeeklyEndOfDayEmailHtml(reports: DailyReport[]): string {
       title: `End of Day — ${store}`,
       subtitle: `${today.dateLabel}${today.timeRange ? " · " + today.timeRange : ""} · Week of ${mondayLabel} · ${reports.length} days`,
     },
-    `${comparison}${commodityTable}
+    `${comparison}${wtdCard}${commodityTable}
       <tr><td style="padding:22px 24px 0;"><p style="margin:0;color:#0b3d66;font-size:15px;font-weight:700;border-top:2px solid #e6eef6;padding-top:18px;">Daily reports</p></td></tr>
       ${dailySections}
       <tr><td style="padding:0 0 8px;">&nbsp;</td></tr>`,
