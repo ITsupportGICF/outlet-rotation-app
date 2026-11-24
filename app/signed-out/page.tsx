@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import Ambient from "@/app/_components/Ambient";
+import LegalFooter from "@/app/_components/LegalFooter";
 
 /**
  * Public "you've signed out" landing page (no auth guard — the user has just
@@ -8,7 +9,7 @@ import Ambient from "@/app/_components/Ambient";
  */
 export default function SignedOutPage() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center p-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center p-6">
       <Ambient />
       <div className="rise-in glass glass-gold gloss relative w-full max-w-md overflow-hidden p-10 text-center">
         <span
@@ -32,6 +33,7 @@ export default function SignedOutPage() {
           Sign in again
         </Link>
       </div>
+      <LegalFooter className="relative mt-8" />
     </main>
   );
 }

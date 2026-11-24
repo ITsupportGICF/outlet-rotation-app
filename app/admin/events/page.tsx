@@ -31,8 +31,8 @@ const GROUP_COLORS: Record<string, { bg: string; fg: string }> = {
   Rotations: { bg: "#dff3e6", fg: "#1c7a44" },
   "Operating Day": { bg: "#e3eefb", fg: "#155a94" },
   "Admin Access": { bg: "#eee8fb", fg: "#5b3fa6" },
-  Sections: { bg: "#fdf3d9", fg: "#8a6d0b" },
-  "Mix & Goals": { bg: "#fdf3d9", fg: "#8a6d0b" },
+  Sections: { bg: "#fdf3d9", fg: "#6f5708" },
+  "Mix & Goals": { bg: "#fdf3d9", fg: "#6f5708" },
   Settings: { bg: "#e9eef3", fg: "#3d5368" },
   Locations: { bg: "#e9eef3", fg: "#3d5368" },
   Users: { bg: "#eee8fb", fg: "#5b3fa6" },
@@ -107,7 +107,7 @@ export default async function EventLogPage({
   const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const muted = { color: "rgba(226,235,245,0.72)" };
-  const faint = { color: "rgba(226,235,245,0.50)" };
+  const faint = { color: "rgba(226,235,245,0.66)" };
 
   return (
     <main className="relative min-h-screen">

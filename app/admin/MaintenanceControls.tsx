@@ -97,7 +97,7 @@ export default function MaintenanceControls({
             defaultValue={returnAtValue}
             className="field-input"
           />
-          <p className="mt-1 text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+          <p className="mt-1 text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
             Shown to everyone who is locked out. Must be in the future.
           </p>
         </div>

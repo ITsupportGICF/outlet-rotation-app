@@ -137,14 +137,14 @@ function SummaryBody({ summary }: { summary: EndOfDaySummary }) {
           By commodity
         </h2>
         {summary.commodities.length === 0 ? (
-          <p className="text-sm" style={{ color: "rgba(226,235,245,0.5)" }}>
+          <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>
             No rotations were recorded today.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm" style={{ color: "#e8f0fa" }}>
               <thead>
-                <tr style={{ color: "rgba(226,235,245,0.6)" }}>
+                <tr style={{ color: "rgba(226,235,245,0.66)" }}>
                   <Th align="left">Commodity</Th>
                   <Th>Tables rotated</Th>
                   <Th>Rotations</Th>
@@ -179,13 +179,13 @@ function SummaryBody({ summary }: { summary: EndOfDaySummary }) {
                     </Td>
                     <Td align="right">
                       {c.goal <= 0 ? (
-                        <span style={{ color: "rgba(226,235,245,0.42)" }}>—</span>
+                        <span style={{ color: "rgba(226,235,245,0.66)" }}>—</span>
                       ) : c.goalMet ? (
                         <span className="chip" style={{ background: "#dff3e6", color: "#1c7a44" }}>
                           Met
                         </span>
                       ) : (
-                        <span className="chip" style={{ background: "#fdf3d9", color: "#8a6d0b" }}>
+                        <span className="chip" style={{ background: "#fdf3d9", color: "#6f5708" }}>
                           {c.totalQuantity}/{c.goal}
                         </span>
                       )}
@@ -204,7 +204,7 @@ function SummaryBody({ summary }: { summary: EndOfDaySummary }) {
           By section
         </h2>
         {summary.sections.length === 0 ? (
-          <p className="text-sm" style={{ color: "rgba(226,235,245,0.5)" }}>
+          <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>
             No section activity today.
           </p>
         ) : (

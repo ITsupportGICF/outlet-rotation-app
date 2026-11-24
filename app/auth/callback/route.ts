@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       code,
       env.AZURE_REDIRECT_URI,
       transaction.verifier,
+      transaction.nonce,
     );
 
     if (!authenticationResult.idToken) {

@@ -28,7 +28,7 @@ export default function AccountSetupForm({ token }: { token: string }) {
           name="username"
           type="text"
           required
-          autoComplete="off"
+          autoComplete="username"
           className="field-input"
         />
       </div>
@@ -78,6 +78,11 @@ export default function AccountSetupForm({ token }: { token: string }) {
       >
         {pending ? "Setting up…" : "Create my account"}
       </button>
+      <p className="text-xs" style={{ color: "rgba(226,235,245,0.72)" }}>
+        Your username is stored with your account. Your password is stored only as a one-way
+        hash that nobody can read. See the{" "}
+        <a href="/privacy" className="legal-link">Privacy Notice</a>.
+      </p>
     </form>
   );
 }

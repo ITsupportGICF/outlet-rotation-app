@@ -15,7 +15,7 @@ export default function MaintenanceBanner({ timeLabel }: { timeLabel: string }) 
       <span>Maintenance mode is ON — only IT can use the app</span>
       <span aria-hidden="true">·</span>
       <span style={{ fontWeight: 500 }}>expected back {timeLabel}</span>
-      <Link href="/admin?tab=maintenance" style={{ color: "#8a6d0b", textDecoration: "underline" }}>
+      <Link href="/admin?tab=maintenance" style={{ color: "#6f5708", textDecoration: "underline" }}>
         Manage →
       </Link>
     </div>

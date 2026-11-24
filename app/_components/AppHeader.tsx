@@ -29,11 +29,15 @@ export default async function AppHeader({ current }: { current: string }) {
   const initials = session ? getInitials(session.name) : "U";
 
   return (
+    <>
+    <a href="#main-content" className="skip-link">
+      Skip to main content
+    </a>
     <header className="glass-bar sticky top-0 z-30 mb-8">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-3 px-5 py-3 sm:px-8">
         {/* Brand + subtle back */}
         <div className="flex items-center gap-3">
-          <Link href="/home" className="flex items-center gap-2.5" aria-label="Home">
+          <Link href="/home" className="flex items-center gap-2.5" aria-label="Outlet Rotation home">
             <span
               className="flex h-9 w-9 items-center justify-center rounded-xl text-lg text-white"
               style={{
@@ -83,7 +87,7 @@ export default async function AppHeader({ current }: { current: string }) {
                 <p className="text-xs font-semibold" style={{ color: "#ffffff" }}>
                   {session.name}
                 </p>
-                <p className="text-[11px]" style={{ color: "rgba(226,235,245,0.50)" }}>
+                <p className="text-[11px]" style={{ color: "rgba(226,235,245,0.66)" }}>
                   {session.email}
                 </p>
               </div>
@@ -95,5 +99,8 @@ export default async function AppHeader({ current }: { current: string }) {
         </div>
       </div>
     </header>
+    {/* Skip-link target: focus lands here, and the next Tab goes to the page's content. */}
+    <span id="main-content" tabIndex={-1} style={{ outline: "none" }} />
+    </>
   );
 }

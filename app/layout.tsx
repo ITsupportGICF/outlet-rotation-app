@@ -48,7 +48,17 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Apply the saved High contrast choice before first paint (no flash).
+            Reads one device-only preference; see app/_components/ContrastToggle. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('ora-contrast')==='high')document.documentElement.dataset.contrast='high'}catch(e){}",
+          }}
+        />
+      </head>
       <body>
         {killed ? (
           <AppDisabledScreen />

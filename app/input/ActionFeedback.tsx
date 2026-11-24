@@ -103,7 +103,7 @@ export default function ActionFeedback() {
     : isSuccess
       ? `${done} is done — next section is ready.`
       : `${overridden} was overridden. A notification was sent.`;
-  const badgeColor = isUndone ? "#c23b3b" : isSuccess ? "#1c7a44" : "#8a6d0b";
+  const badgeColor = isUndone ? "#c23b3b" : isSuccess ? "#1c7a44" : "#6f5708";
 
   return (
     <div

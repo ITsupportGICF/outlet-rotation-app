@@ -49,16 +49,21 @@ function getClient(): ConfidentialClientApplication {
 /**
  * SIGN-IN: exchange the authorization code (with its PKCE verifier) for
  * tokens. The caller uses the returned ID token to establish identity.
+ *
+ * The nonce sent in the sign-in request must be passed here: MSAL 7 rejects
+ * any ID token whose nonce it cannot match (nonce_mismatch).
  */
 export async function acquireTokenByCode(
   code: string,
   redirectUri: string,
   codeVerifier: string,
+  nonce: string,
 ): Promise<AuthenticationResult> {
   return getClient().acquireTokenByCode({
     code,
     redirectUri,
     codeVerifier,
+    nonce,
     scopes: SIGN_IN_SCOPES,
   });
 }

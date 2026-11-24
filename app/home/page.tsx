@@ -6,6 +6,7 @@ import Ambient from "@/app/_components/Ambient";
 import AppHeader from "@/app/_components/AppHeader";
 
 import ConnectionCheckModal from "./ConnectionCheckModal";
+import LegalFooter from "@/app/_components/LegalFooter";
 
 const AREAS = [
   {
@@ -84,9 +85,9 @@ export default async function HomePage() {
                 >
                   {area.symbol}
                 </span>
-                <h3 className="mb-2 text-xl font-semibold" style={{ color: "#ffffff" }}>
+                <h2 className="mb-2 text-xl font-semibold" style={{ color: "#ffffff" }}>
                   {area.title}
-                </h3>
+                </h2>
                 <p className="text-sm leading-relaxed" style={{ color: "rgba(226,235,245,0.72)" }}>
                   {area.description}
                 </p>
@@ -106,6 +107,7 @@ export default async function HomePage() {
           Outlet Rotation App · Goodwill Industries of Central Florida
         </span>
         <ConnectionCheckModal />
+        <LegalFooter className="mt-1" />
       </footer>
     </main>
   );

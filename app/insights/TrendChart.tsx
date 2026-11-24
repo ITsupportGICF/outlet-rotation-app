@@ -129,7 +129,7 @@ export default function TrendChart({
           {title}
         </span>
         {note && (
-          <span className="mt-0.5 block text-xs" style={{ color: "rgba(226,235,245,0.55)" }}>
+          <span className="mt-0.5 block text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
             {note}
           </span>
         )}
@@ -155,7 +155,7 @@ export default function TrendChart({
       )}
 
       {!hasData ? (
-        <p className="py-10 text-center text-sm" style={{ color: "rgba(226,235,245,0.55)" }}>
+        <p className="py-10 text-center text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>
           No completed days in this period.
         </p>
       ) : (
@@ -179,7 +179,7 @@ export default function TrendChart({
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} stroke={t === 0 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)"} strokeWidth="1" />
-                <text x={PAD.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="rgba(226,235,245,0.55)" style={{ fontVariantNumeric: "tabular-nums" }}>
+                <text x={PAD.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="rgba(226,235,245,0.66)" style={{ fontVariantNumeric: "tabular-nums" }}>
                   {formatValue(t, unit, unit === "count" && kind === "line" && yMax < 5 ? 1 : 0)}
                 </text>
               </g>
@@ -193,7 +193,7 @@ export default function TrendChart({
                   y={H - 8}
                   textAnchor={kind === "line" && i === n - 1 && n > 1 ? "end" : kind === "line" && i === 0 && n > 1 ? "start" : "middle"}
                   fontSize="11"
-                  fill="rgba(226,235,245,0.55)"
+                  fill="rgba(226,235,245,0.66)"
                 >
                   {l}
                 </text>
@@ -262,7 +262,7 @@ export default function TrendChart({
                 zIndex: 5,
               }}
             >
-              <div style={{ color: "rgba(226,235,245,0.6)", marginBottom: 4 }}>Week of {labels[hover]}</div>
+              <div style={{ color: "rgba(226,235,245,0.66)", marginBottom: 4 }}>Week of {labels[hover]}</div>
               {series.map((s) => (
                 <div key={s.name} className="flex items-center justify-between gap-3">
                   <span className="inline-flex items-center gap-1.5" style={{ color: "rgba(226,235,245,0.75)" }}>
@@ -282,7 +282,7 @@ export default function TrendChart({
       )}
 
       <details className="mt-2">
-        <summary className="cursor-pointer text-xs" style={{ color: "rgba(226,235,245,0.55)" }} aria-controls={tableId}>
+        <summary className="cursor-pointer text-xs" style={{ color: "rgba(226,235,245,0.66)" }} aria-controls={tableId}>
           View as table
         </summary>
         <div id={tableId} style={{ overflowX: "auto" }}>

@@ -22,7 +22,7 @@
   /* Text */
   --text: #ffffff;
   --text-muted: rgba(226, 235, 245, 0.66);
-  --text-faint: rgba(226, 235, 245, 0.42);
+  --text-faint: rgba(226, 235, 245, 0.66);
 
   /* Glass */
   --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035));
@@ -35,7 +35,7 @@
   --navy-mid: #12233a;
   --blue: var(--gold-400);
   --slate: rgba(226, 235, 245, 0.72);
-  --slate-soft: rgba(226, 235, 245, 0.5);
+  --slate-soft: rgba(226, 235, 245, 0.66);
   --gold: var(--gold-400);
   --gold-soft: var(--gold-300);
   --gold-border: var(--hairline);
@@ -274,7 +274,7 @@ h3 {
     background 0.15s ease;
 }
 .field-input::placeholder {
-  color: rgba(226, 235, 245, 0.34);
+  color: rgba(226, 235, 245, 0.55);
 }
 .field-input:focus {
   outline: none;
@@ -365,7 +365,6 @@ h3 {
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-faint);
-  opacity: 0.9;
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -661,4 +660,175 @@ h3 {
   white-space: normal;
   line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Accessibility                                                           */
+/* ----------------------------------------------------------------------- */
+
+/* A clear, consistent keyboard focus ring everywhere (WCAG 2.4.7 / 2.4.11). */
+:focus-visible {
+  outline: 3px solid var(--gold-400);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.field-input:focus-visible {
+  outline: 3px solid var(--gold-400);
+  outline-offset: 1px;
+}
+
+/* "Skip to main content": hidden until it receives keyboard focus. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -100px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--gold-400);
+  color: #081525;
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Reduced motion: stop every non-essential animation and transition. The
+   loading spinner keeps turning slowly because it shows work is happening. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* High contrast (footer switch; [data-contrast="high"] on <html>). Every
+   muted or faint text becomes near-white; borders and rings get stronger. */
+[data-contrast="high"] {
+  --text-muted: #f4f8fc;
+  --text-faint: #e6edf5;
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --hairline: rgba(245, 196, 81, 0.75);
+}
+[data-contrast="high"] [style*="rgba(226,235,245"],
+[data-contrast="high"] [style*="rgba(226, 235, 245"],
+[data-contrast="high"] .on-dark-soft,
+[data-contrast="high"] .page-sub,
+[data-contrast="high"] .field-label,
+[data-contrast="high"] .legal-text,
+[data-contrast="high"] .legal-link,
+[data-contrast="high"] .legal-meta {
+  color: #f4f8fc !important;
+  opacity: 1 !important;
+}
+[data-contrast="high"] .field-input {
+  border-color: rgba(245, 196, 81, 0.85);
+  background: #050d18;
+}
+[data-contrast="high"] .glass {
+  background: #0b1a2c;
+}
+[data-contrast="high"] :focus-visible {
+  outline-width: 4px;
+  outline-color: #ffe08a;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Legal pages + footer                                                    */
+/* ----------------------------------------------------------------------- */
+.legal-text {
+  color: #a9b6c4;
+}
+/* Footer links/buttons get a 24px-tall target (WCAG 2.5.8); links inside a
+   sentence keep normal line height. */
+nav .legal-link,
+nav button.legal-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 2px;
+}
+.legal-link {
+  color: #a9b6c4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(169, 182, 196, 0.5);
+}
+.legal-link:hover {
+  color: #ffffff;
+}
+.legal-meta {
+  color: #b9c5d2;
+}
+.legal-doc {
+  color: #e6edf5;
+  line-height: 1.65;
+}
+.legal-doc h2 {
+  margin: 2rem 0 0.6rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.legal-doc h3 {
+  margin: 1.2rem 0 0.4rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #ffe08a;
+}
+.legal-doc p {
+  margin: 0.5rem 0;
+}
+.legal-doc ul {
+  margin: 0.5rem 0;
+  padding-left: 1.3rem;
+  list-style: disc;
+}
+.legal-doc li {
+  margin: 0.35rem 0;
+}
+.legal-doc a {
+  color: #ffe08a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal-doc code {
+  font-size: 0.85em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow-wrap: anywhere;
+}
+.legal-table-wrap {
+  overflow-x: auto;
+  margin: 0.8rem 0;
+}
+.legal-doc table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.legal-doc th,
+.legal-doc td {
+  padding: 0.55rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.legal-doc th {
+  color: #ffffff;
+  font-weight: 700;
+}
+.legal-columns {
+  columns: 2 16rem;
 }

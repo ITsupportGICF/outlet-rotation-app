@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import Ambient from "@/app/_components/Ambient";
 import KillSwitchPanel from "@/app/_components/KillSwitchPanel";
+import LegalFooter from "@/app/_components/LegalFooter";
+import Link from "next/link";
 
 const ERROR_MESSAGES: Record<string, string> = {
   access_denied:
@@ -26,7 +28,7 @@ export default async function HomePage(props: PageProps<"/">) {
     : null;
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center p-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center p-6">
       <Ambient />
       <KillSwitchPanel />
 
@@ -73,10 +75,13 @@ export default async function HomePage(props: PageProps<"/">) {
           Sign in with Microsoft 365
         </a>
 
-        <p className="mt-6 text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
-          Secure access for authorized Goodwill staff only.
+        <p className="mt-6 text-xs" style={{ color: "rgba(226,235,245,0.72)" }}>
+          Secure access for authorized Goodwill staff only. By signing in you agree to the{" "}
+          <Link href="/terms" className="legal-link">Terms of Use</Link> and acknowledge the{" "}
+          <Link href="/privacy" className="legal-link">Privacy Notice</Link>.
         </p>
       </div>
+      <LegalFooter className="relative mt-8" />
     </main>
   );
 }

@@ -164,7 +164,7 @@ export default async function AdminCenterPage({
               </button>
               <p
                 className="mt-1 text-right text-xs"
-                style={{ color: "rgba(226,235,245,0.50)" }}
+                style={{ color: "rgba(226,235,245,0.66)" }}
               >
                 Keeps you signed in to the app
               </p>
@@ -187,7 +187,7 @@ export default async function AdminCenterPage({
             {str(params.relogin) && (
               <div
                 className="mb-5 rounded-xl px-4 py-3 text-sm"
-                style={{ background: "#fdf3d9", border: "1px solid #ecd591", color: "#8a6d0b" }}
+                style={{ background: "#fdf3d9", border: "1px solid #ecd591", color: "#6f5708" }}
               >
                 Your Admin Center session timed out. Please sign in again — any
                 unsaved changes on the previous screen weren&apos;t saved.
@@ -268,7 +268,7 @@ async function AdminWorkspace({
         <div className="flex flex-wrap items-center gap-2">
           <span className="eyebrow mr-1" style={{ alignSelf: "center" }}>Outlet</span>
           {outlets.length === 0 ? (
-            <span className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>None yet — add one under Locations.</span>
+            <span className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>None yet — add one under Locations.</span>
           ) : (
             outlets.map((o) => (
               <Link
@@ -287,7 +287,7 @@ async function AdminWorkspace({
             ))
           )}
         </div>
-        <span className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+        <span className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
           Admin: <strong style={{ color: "#ffffff" }}>{adminName}</strong> · 30&nbsp;min
         </span>
       </div>
@@ -415,11 +415,11 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
       </p>
 
       {!openDay ? (
-        <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>
+        <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>
           Start the day first (Overview tab) to record a manual rotation.
         </p>
       ) : sections.length === 0 ? (
-        <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>
+        <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>
           No active sections. Add some under the Sections tab.
         </p>
       ) : !selected ? (
@@ -473,7 +473,7 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
           )}
 
           {commodities.length === 0 ? (
-            <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No commodities configured.</p>
+            <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>No commodities configured.</p>
           ) : (
             <form action={manualRotationAction} className="space-y-4">
               <input type="hidden" name="outletId" value={outlet.id} />
@@ -491,7 +491,7 @@ async function RotationTab({ outlet, sec }: { outlet: Outlet; sec?: string }) {
               >
                 Rotate {selected.name}
               </SubmitButton>
-              <p className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+              <p className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
                 Only commodities with a quantity above 0 are recorded.
               </p>
             </form>
@@ -525,7 +525,7 @@ async function SectionsTab({ outlet }: { outlet: Outlet }) {
         </p>
 
         {sections.length === 0 ? (
-          <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>
+          <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>
             No sections yet — add one under &ldquo;Manage sections&rdquo; first.
           </p>
         ) : (
@@ -537,7 +537,7 @@ async function SectionsTab({ outlet }: { outlet: Outlet }) {
                   <span className="w-44 text-sm font-medium" style={{ color: "#ffffff" }}>
                     {s.name}
                     {!s.isActive && (
-                      <span style={{ color: "rgba(226,235,245,0.5)" }}> (inactive)</span>
+                      <span style={{ color: "rgba(226,235,245,0.66)" }}> (inactive)</span>
                     )}
                   </span>
                   <input
@@ -558,9 +558,9 @@ async function SectionsTab({ outlet }: { outlet: Outlet }) {
                 <span className="eyebrow" style={{ fontSize: "0.6rem" }}>Current sequence (active sections)</span>
                 <p className="mt-1 font-semibold" style={{ color: "#ffffff" }}>
                   {sequenceNames.join("  →  ")}{" "}
-                  <span style={{ color: "rgba(226,235,245,0.5)" }}>→ (repeats)</span>
+                  <span style={{ color: "rgba(226,235,245,0.66)" }}>→ (repeats)</span>
                 </p>
-                <p className="mt-1 text-xs" style={{ color: "rgba(226,235,245,0.5)" }}>
+                <p className="mt-1 text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
                   Updates after you save.
                 </p>
               </div>
@@ -569,7 +569,7 @@ async function SectionsTab({ outlet }: { outlet: Outlet }) {
             <SubmitButton className="btn btn-primary btn-md" overlayLabel="Saving rotation order…">
               Save rotation order
             </SubmitButton>
-            <p className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+            <p className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
               Every section needs a valid order and every position number must be
               unique. Nothing is saved unless all sections pass.
             </p>
@@ -580,7 +580,7 @@ async function SectionsTab({ outlet }: { outlet: Outlet }) {
       {/* Manage sections — rename / activate / remove / add (order is above). */}
       <Card title="Manage sections">
         <div className="mb-6 space-y-3">
-          {sections.length === 0 && <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No sections yet.</p>}
+          {sections.length === 0 && <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>No sections yet.</p>}
           {sections.map((s) => (
             <div key={s.id} className="glass rounded-2xl p-4">
               <form action={updateSectionAction} className="flex flex-wrap items-end gap-3">
@@ -617,7 +617,7 @@ async function SectionsTab({ outlet }: { outlet: Outlet }) {
           </label>
           <SubmitButton className="btn btn-primary btn-md" overlayLabel="Adding section…">Add section</SubmitButton>
         </form>
-        <p className="mt-3 text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+        <p className="mt-3 text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
           New sections are added at the next open position — set where they land
           in the Rotation order above.
         </p>
@@ -640,7 +640,7 @@ async function MixTab({ outlet }: { outlet: Outlet }) {
         press logs all of them at once.
       </p>
       {sections.length === 0 || commodities.length === 0 ? (
-        <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>Add sections and commodities first.</p>
+        <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>Add sections and commodities first.</p>
       ) : (
         <div className="space-y-4">
           {sections.map((s) => (
@@ -686,7 +686,7 @@ async function GoalsTab({ outlet }: { outlet: Outlet }) {
   return (
     <Card title="Daily commodity goals">
       {commodities.length === 0 ? (
-        <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No commodities configured.</p>
+        <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>No commodities configured.</p>
       ) : (
         <form action={saveGoalsAction} className="space-y-4">
           <input type="hidden" name="outletId" value={outlet.id} />
@@ -715,7 +715,7 @@ async function GoalsTab({ outlet }: { outlet: Outlet }) {
           </div>
 
           {openDay ? (
-            <p className="text-xs" style={{ color: "rgba(226,235,245,0.60)" }}>
+            <p className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
               Goals are locked onto a day when you press <strong>Start Day</strong>.
               <strong> Save goals</strong> updates the default for future days;
               today&apos;s open day keeps what it was started with
@@ -724,7 +724,7 @@ async function GoalsTab({ outlet }: { outlet: Outlet }) {
               today&apos;s dashboard now.
             </p>
           ) : (
-            <p className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+            <p className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
               No day is open. These goals apply to the next day you start.
             </p>
           )}
@@ -760,7 +760,7 @@ async function SettingsTab({ outlet }: { outlet: Outlet }) {
           <SubmitButton className="btn btn-primary btn-md" overlayLabel="Saving settings…">Save settings</SubmitButton>
         </div>
       </form>
-      <p className="mt-3 text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+      <p className="mt-3 text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
         These are the live settings. Start Day snapshots them onto the day, so
         editing here never changes a day already in progress.
       </p>
@@ -772,7 +772,7 @@ function LocationsTab({ outlets }: { outlets: Outlet[] }) {
   return (
     <Card title="Outlets / store locations">
       <div className="mb-5 divide-y" style={{ borderColor: "rgba(44,62,86,0.08)" }}>
-        {outlets.length === 0 && <p className="py-2 text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No outlets yet.</p>}
+        {outlets.length === 0 && <p className="py-2 text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>No outlets yet.</p>}
         {outlets.map((o) => (
           <div key={o.id} className="flex items-center justify-between py-3">
             <span className="font-medium" style={{ color: "#ffffff" }}>{o.name}</span>
@@ -852,6 +852,10 @@ async function UsersTab() {
                 Create account
               </SubmitButton>
             </div>
+            <p className="text-xs sm:col-span-2" style={{ color: "rgba(226,235,245,0.72)" }}>
+              The name and work email are used only to send the setup invitation and to identify
+              the account in the Admin Center and Event Log. Use a Goodwill work email.
+            </p>
           </form>
         </Card>
       )}
@@ -863,7 +867,7 @@ async function UsersTab() {
             by Super Admins and IT.
           </p>
         ) : users.length === 0 ? (
-          <p className="text-sm" style={{ color: "rgba(226,235,245,0.50)" }}>No accounts yet.</p>
+          <p className="text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>No accounts yet.</p>
         ) : (
           <div className="space-y-3">
             {users.map((u) => (
@@ -901,7 +905,7 @@ function UserRow({ actor, user }: { actor: AdminUserRecord; user: AdminUserRecor
             {user.displayName}
             {isSelf ? " (you)" : ""}
           </p>
-          <p className="text-xs" style={{ color: "rgba(226,235,245,0.6)" }}>
+          <p className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
             {user.email} · username: {user.username}
           </p>
         </div>
@@ -910,7 +914,7 @@ function UserRow({ actor, user }: { actor: AdminUserRecord; user: AdminUserRecor
             {user.permissionLevel}
           </span>
           {!user.setupComplete ? (
-            <span className="chip" style={{ background: "#fdf3d9", color: "#8a6d0b" }}>Pending setup</span>
+            <span className="chip" style={{ background: "#fdf3d9", color: "#6f5708" }}>Pending setup</span>
           ) : user.isActive ? (
             <span className="chip" style={{ background: "#dff3e6", color: "#1c7a44" }}>Active</span>
           ) : (
@@ -1024,8 +1028,10 @@ async function NotificationsTab() {
         <SubmitButton className="btn btn-primary btn-md" overlayLabel="Saving…">
           Save notification settings
         </SubmitButton>
-        <p className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
-          Leave recipients or the sending mailbox blank to pause all emails.
+        <p className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
+          Use Goodwill work addresses only. These emails contain store results and staff
+          email addresses, so they are for internal recipients. Leave recipients or the
+          sending mailbox blank to pause all emails.
           Sending requires the one-time Mail.Send setup (see
           docs/email-setup.md).
         </p>
@@ -1037,9 +1043,9 @@ async function NotificationsTab() {
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="glass glass-gold p-6 sm:p-7">
-      <h3 className="mb-4 text-lg font-semibold" style={{ color: "#ffffff" }}>
+      <h2 className="mb-4 text-lg font-semibold" style={{ color: "#ffffff" }}>
         {title}
-      </h3>
+      </h2>
       {children}
     </section>
   );

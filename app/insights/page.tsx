@@ -49,7 +49,7 @@ const GAP_COLOR = "#3987e5";
 const ink = {
   primary: { color: "#ffffff" },
   muted: { color: "rgba(226,235,245,0.72)" },
-  faint: { color: "rgba(226,235,245,0.50)" },
+  faint: { color: "rgba(226,235,245,0.66)" },
 };
 
 function fmtCount(n: number): string {
@@ -116,7 +116,12 @@ async function InsightsBody({
   try {
     access = await getOutletAccess(session);
   } catch {
-    return <Notice>SharePoint couldn&apos;t be reached just now. Refresh to try again.</Notice>;
+    return (
+      <>
+        <h1 className="page-title mb-4 text-3xl font-bold">Insights</h1>
+        <Notice>SharePoint couldn&apos;t be reached just now. Refresh to try again.</Notice>
+      </>
+    );
   }
   const restricted = access.restricted;
   const requested = params.location && params.location !== "all" ? params.location : null;
@@ -134,7 +139,12 @@ async function InsightsBody({
   try {
     data = await loadInsights(location ? [location] : (allowedIds ?? "all"), loadFrom, today);
   } catch {
-    return <Notice>SharePoint couldn&apos;t be reached just now. Refresh to try again.</Notice>;
+    return (
+      <>
+        <h1 className="page-title mb-4 text-3xl font-bold">Insights</h1>
+        <Notice>SharePoint couldn&apos;t be reached just now. Refresh to try again.</Notice>
+      </>
+    );
   }
 
   // Stable colour per outlet (by id order across the whole system).
@@ -416,12 +426,13 @@ async function InsightsBody({
 
 function LoadingBlock() {
   return (
-    <div className="flex flex-col items-center justify-center py-32 text-center">
+    <div className="flex flex-col items-center justify-center py-32 text-center" role="status">
+      <h1 className="sr-only">Insights</h1>
       <span className="spinner" aria-hidden="true" />
       <p className="mt-5 text-lg font-semibold" style={{ color: "#ffffff" }}>
         Loading Insights…
       </p>
-      <p className="mt-1 max-w-sm text-sm" style={{ color: "rgba(226,235,245,0.6)" }}>
+      <p className="mt-1 max-w-sm text-sm" style={{ color: "rgba(226,235,245,0.66)" }}>
         Reading rotation history. The first load after an update can take a little longer;
         after that it&apos;s quick.
       </p>
@@ -492,7 +503,7 @@ function ChangeBadge({ c }: { c: Change | null }) {
   if (!c || c.direction === "none") return <span style={ink.faint}>—</span>;
   const text =
     c.points != null ? signedPts(c.points) : c.relative != null ? signedPct(c.relative) : "—";
-  const color = c.verdict === "better" ? "#5fd08a" : c.verdict === "worse" ? "#ff8f8f" : "rgba(226,235,245,0.6)";
+  const color = c.verdict === "better" ? "#5fd08a" : c.verdict === "worse" ? "#ff8f8f" : "rgba(226,235,245,0.66)";
   const arrow = c.direction === "up" ? "▲" : c.direction === "down" ? "▼" : "■";
   const word = c.verdict === "better" ? "better" : c.verdict === "worse" ? "worse" : "about the same";
   return (
@@ -554,7 +565,7 @@ function ComparisonCard({
 
 const STATUS: Record<LocationReview["status"], { label: string; bg: string; fg: string; icon: string }> = {
   attention: { label: "Needs attention", bg: "#fdecec", fg: "#b42318", icon: "!" },
-  watch: { label: "Slipping", bg: "#fdf3d9", fg: "#8a6d0b", icon: "▼" },
+  watch: { label: "Slipping", bg: "#fdf3d9", fg: "#6f5708", icon: "▼" },
   improving: { label: "Improving", bg: "#dff3e6", fg: "#1c7a44", icon: "▲" },
   "on-track": { label: "On track", bg: "#e3eefb", fg: "#155a94", icon: "✓" },
   "no-data": { label: "Not enough data", bg: "#e9eef3", fg: "#3d5368", icon: "…" },

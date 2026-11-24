@@ -59,7 +59,7 @@ export default function RotateControls({
         type="button"
         onClick={() => setConfirming(true)}
         className="btn btn-ghost btn-sm btn-block"
-        style={{ color: "#8a6d0b" }}
+        style={{ color: "#6f5708" }}
       >
         Override / Skip
       </button>
@@ -79,7 +79,7 @@ export default function RotateControls({
           >
             <span
               className="flex h-14 w-14 items-center justify-center rounded-full text-2xl"
-              style={{ background: "#fff6e0", color: "#8a6d0b" }}
+              style={{ background: "#fff6e0", color: "#6f5708" }}
               aria-hidden="true"
             >
               ⏭

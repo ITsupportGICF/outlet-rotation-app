@@ -45,6 +45,7 @@ export default async function InputScreenPage({
       <main className="relative min-h-screen">
         <Ambient />
         <AppHeader current="input" />
+      <h1 className="sr-only">Input Screen</h1>
         <div className="mx-auto max-w-4xl px-6 pb-14 sm:px-10">
           <SetupNotice />
         </div>
@@ -65,6 +66,7 @@ export default async function InputScreenPage({
     <main className="relative min-h-screen">
       <Ambient />
       <AppHeader current="input" />
+      <h1 className="sr-only">Input Screen</h1>
       <Suspense fallback={null}>
         <ActionFeedback />
       </Suspense>
@@ -86,6 +88,7 @@ function LocationUnavailable({ label }: { label: string | null }) {
     <main className="relative min-h-screen">
       <Ambient />
       <AppHeader current="input" />
+      <h1 className="sr-only">Input Screen</h1>
       <div className="mx-auto max-w-4xl px-6 pb-14 sm:px-10">
         <SetupNotice
           message={`This device is signed in as the ${label ?? "store"} account, but no active ${label ?? "store"} outlet is configured. Ask an admin to activate it in the Admin Center.`}
@@ -212,7 +215,7 @@ async function OutletInput({ outletId }: { outletId: string }) {
                     {s.awaitingFirstRotation ? "Ready" : freshnessLabel(s.freshness)}
                   </span>
                 </div>
-                <p className="mb-4 text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+                <p className="mb-4 text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
                   {s.lastRotatedAt
                     ? `Last rotated ${formatClockTime(s.lastRotatedAt)}`
                     : "Not rotated yet today"}

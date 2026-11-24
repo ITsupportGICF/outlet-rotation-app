@@ -138,7 +138,7 @@ function KillSwitchModal({ onClose }: { onClose: () => void }) {
           color: "#e2ebf5",
         }}
       >
-        <p style={{ fontSize: 12, letterSpacing: 1, textTransform: "uppercase", color: "rgba(226,235,245,0.55)", margin: 0 }}>
+        <p style={{ fontSize: 12, letterSpacing: 1, textTransform: "uppercase", color: "rgba(226,235,245,0.66)", margin: 0 }}>
           Application control
         </p>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: "6px 0 4px", color: "#fff" }}>

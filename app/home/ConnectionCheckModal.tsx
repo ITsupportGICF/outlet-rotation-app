@@ -90,7 +90,7 @@ export default function ConnectionCheckModal() {
           void runCheck();
         }}
         className="text-xs font-medium underline-offset-2 hover:underline"
-        style={{ color: "rgba(226,235,245,0.50)" }}
+        style={{ color: "rgba(226,235,245,0.66)" }}
       >
         Check Internet Connection
       </button>

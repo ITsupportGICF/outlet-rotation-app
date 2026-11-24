@@ -64,7 +64,7 @@ export default function SubmitButton({
             <p className="text-base font-semibold" style={{ color: "#ffffff" }}>
               {overlayLabel}
             </p>
-            <p className="text-xs" style={{ color: "rgba(226,235,245,0.50)" }}>
+            <p className="text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
               Please wait a moment…
             </p>
           </div>

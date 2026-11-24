@@ -52,7 +52,7 @@ export default function MaintenanceScreen({
       <div className="glass glass-gold gloss relative w-full max-w-lg overflow-hidden p-8 text-center">
         <span
           className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full text-3xl"
-          style={{ background: "#fff6e0", color: "#8a6d0b" }}
+          style={{ background: "#fff6e0", color: "#6f5708" }}
           aria-hidden="true"
         >
           ⚙
@@ -87,7 +87,7 @@ export default function MaintenanceScreen({
           </a>
         </div>
 
-        <p className="mt-6 text-xs" style={{ color: "rgba(226,235,245,0.45)" }}>
+        <p className="mt-6 text-xs" style={{ color: "rgba(226,235,245,0.66)" }}>
           This page checks automatically every minute and will return you to the
           app as soon as maintenance ends.
         </p>
